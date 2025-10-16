@@ -117,6 +117,87 @@ local function updateInspectItems()
 	end
 end
 
+-- Update merchant item borders
+local function updateMerchantItems()
+	-- Update merchant items (1-12)
+	for i = 1, 12 do
+		local button = _G["MerchantItem"..i.."ItemButton"]
+		if button then
+			local border = createBorder(button)
+			local itemLink = GetMerchantItemLink(i)
+			
+			if itemLink then
+				local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
+				
+				if itemType == "Quest" then
+					border:SetVertexColor(1, 1, 0)
+					border:Show()
+				elseif quality and quality >= 2 then
+					local r, g, b = GetItemQualityColor(quality)
+					border:SetVertexColor(r, g, b)
+					border:Show()
+				else
+					border:Hide()
+				end
+			else
+				border:Hide()
+			end
+		end
+	end
+	
+	-- Update single buyback slot in merchant tab
+	local buybackButton = _G["MerchantBuyBackItemItemButton"]
+	if buybackButton then
+		local border = createBorder(buybackButton)
+		local itemLink = GetBuybackItemLink(GetNumBuybackItems())
+		
+		if itemLink then
+			local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
+			
+			if itemType == "Quest" then
+				border:SetVertexColor(1, 1, 0)
+				border:Show()
+			elseif quality and quality >= 2 then
+				local r, g, b = GetItemQualityColor(quality)
+				border:SetVertexColor(r, g, b)
+				border:Show()
+			else
+				border:Hide()
+			end
+		else
+			border:Hide()
+		end
+	end
+	
+	-- Update buyback items when on buyback tab (1-12)
+	if MerchantFrame.selectedTab == 2 then -- Tab 2 is buyback
+		for i = 1, 12 do
+			local buybackTabButton = _G["MerchantItem"..i.."ItemButton"]
+			if buybackTabButton then
+				local border = createBorder(buybackTabButton)
+				local itemLink = GetBuybackItemLink(i)
+				
+				if itemLink then
+					local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
+					
+					if itemType == "Quest" then
+						border:SetVertexColor(1, 1, 0)
+						border:Show()
+					elseif quality and quality >= 2 then
+						local r, g, b = GetItemQualityColor(quality)
+						border:SetVertexColor(r, g, b)
+						border:Show()
+					else
+						border:Hide()
+					end
+				else
+					border:Hide()
+				end
+			end
+		end
+	end
+end
+
 -- Initialize hooks on login
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
@@ -132,6 +213,10 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 		
 		-- Hook character frame updates
 		hooksecurefunc("PaperDollItemSlotButton_Update", updateCharacterItems)
+		
+		-- Hook merchant frame updates
+		hooksecurefunc("MerchantFrame_UpdateMerchantInfo", updateMerchantItems)
+		hooksecurefunc("MerchantFrame_UpdateBuybackInfo", updateMerchantItems)
 		
 		-- Check if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
