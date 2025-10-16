@@ -1,3 +1,25 @@
+-- Quality color mapping (cached for performance)
+local qualityColors = {
+	[0] = {0.62, 0.62, 0.62}, -- Poor (gray)
+	[1] = {1.00, 1.00, 1.00}, -- Common (white)
+	[2] = {0.12, 1.00, 0.00}, -- Uncommon (green)
+	[3] = {0.00, 0.44, 0.87}, -- Rare (blue)
+	[4] = {0.64, 0.21, 0.93}, -- Epic (purple)
+	[5] = {1.00, 0.50, 0.00}, -- Legendary (orange)
+	[6] = {0.90, 0.80, 0.50}, -- Artifact (light orange)
+	[7] = {0.00, 0.80, 1.00}, -- Heirloom (light blue)
+	Quest = {1.00, 1.00, 0.00}, -- Quest items (yellow)
+}
+
+-- Get quality color (with centralized color control)
+local function getQualityColor(quality)
+	local color = qualityColors[quality]
+	if not color then
+		return 1, 1, 1 -- Default to white
+	end
+	return color[1], color[2], color[3]
+end
+
 -- Create border texture for item buttons
 local function createBorder(button)
 	if button.cfQualityBorder then
@@ -17,52 +39,58 @@ local function createBorder(button)
 	return border
 end
 
--- Apply quality color to item button border
-local function colorItemButton(button, containerID, slotID)
+-- Apply quality color to any button border (unified function)
+local function applyBorderColor(button, quality, itemType)
 	local border = createBorder(button)
-	local itemID = C_Container.GetContainerItemID(containerID, slotID)
-	
-	if not itemID then
-		border:Hide()
-		return
-	end
-	
-	local _, _, quality, _, _, itemType = GetItemInfo(itemID)
 	
 	if itemType == "Quest" then
-		border:SetVertexColor(1, 1, 0)
+		local r, g, b = getQualityColor(itemType)
+		border:SetVertexColor(r, g, b)
 		border:Show()
 	elseif quality and quality >= 2 then
-		local r, g, b = GetItemQualityColor(quality)
-			border:SetVertexColor(r, g, b)
+		local r, g, b = getQualityColor(quality)
+		border:SetVertexColor(r, g, b)
 		border:Show()
 	else
 		border:Hide()
 	end
 end
 
--- Update all bag item borders
-local function updateBagItems(frame)
+-- Apply quality color to container item button
+local function applyContainerBorderColor(button, containerID, slotID)
+	local itemID = C_Container.GetContainerItemID(containerID, slotID)
+	
+	if not itemID then
+		createBorder(button):Hide()
+		return
+	end
+	
+	local _, _, quality, _, _, itemType = GetItemInfo(itemID)
+	applyBorderColor(button, quality, itemType)
+end
+
+-- Update bag item borders
+local function updateBagBorders(frame)
 	local bagID = frame:GetID()
 	local name = frame:GetName()
 	
 	for i = 1, frame.size do
 		local button = _G[name.."Item"..i]
 		if button and button:IsVisible() then -- Only process visible buttons
-			colorItemButton(button, bagID, button:GetID())
+			applyContainerBorderColor(button, bagID, button:GetID())
 		end
 	end
 end
 
--- Update all bank item borders
-local function updateBankItems()
+-- Update bank item borders
+local function updateBankBorders()
 	-- Early exit if bank frame not visible
 	if not BankFrame or not BankFrame:IsVisible() then return end
 	
 	for slotID = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
 		local button = _G["BankFrameItem"..slotID]
 		if button and button:IsVisible() then
-			colorItemButton(button, BANK_CONTAINER, slotID)
+			applyContainerBorderColor(button, BANK_CONTAINER, slotID)
 		end
 	end
 end
@@ -74,65 +102,47 @@ local equipmentSlots = {
 	"Trinket0", "Trinket1", "MainHand", "SecondaryHand", "Ranged", "Ammo"
 }
 
--- Apply quality color to any button border using item link
-local function colorButtonByLink(button, itemLink)
-	local border = createBorder(button)
-	
+-- Apply quality color to button using item link
+local function applyBorderColorByLink(button, itemLink)
 	if not itemLink then
-		border:Hide()
+		createBorder(button):Hide()
 		return
 	end
 	
-	-- Extract quality directly from item link (faster than GetItemInfo)
 	local quality = select(3, GetItemInfo(itemLink))
-	if not quality then
-		border:Hide()
-		return
-	end
-	
-	-- Check if it's a quest item by item type
 	local itemType = select(6, GetItemInfo(itemLink))
 	
-	if itemType == "Quest" then
-		border:SetVertexColor(1, 1, 0)
-		border:Show()
-	elseif quality >= 2 then
-		local r, g, b = GetItemQualityColor(quality)
-		border:SetVertexColor(r, g, b)
-		border:Show()
-	else
-		border:Hide()
+	if not quality then
+		createBorder(button):Hide()
+		return
+	end
+	
+	applyBorderColor(button, quality, itemType)
+end
+
+-- Update equipment item borders (unified function)
+local function updateEquipmentItems(framePrefix, unit, parentFrame)
+	-- Early exit if parent frame not visible
+	if not parentFrame or not parentFrame:IsVisible() then return end
+	
+	for _, slotName in ipairs(equipmentSlots) do
+		local slotID = GetInventorySlotInfo(slotName.."Slot")
+		local button = _G[framePrefix..slotName.."Slot"]
+		if button and button:IsVisible() and slotID then
+			local itemLink = GetInventoryItemLink(unit, slotID)
+			applyBorderColorByLink(button, itemLink)
+		end
 	end
 end
 
 -- Update character equipment item borders
 local function updateCharacterItems()
-	-- Early exit if character frame not visible
-	if not CharacterFrame or not CharacterFrame:IsVisible() then return end
-	
-	for _, slotName in ipairs(equipmentSlots) do
-		local slotID = GetInventorySlotInfo(slotName.."Slot")
-		local button = _G["Character"..slotName.."Slot"]
-		if button and button:IsVisible() and slotID then
-			local itemLink = GetInventoryItemLink("player", slotID)
-			colorButtonByLink(button, itemLink)
-		end
-	end
+	updateEquipmentItems("Character", "player", CharacterFrame)
 end
 
 -- Update inspect equipment item borders
 local function updateInspectItems()
-	-- Early exit if inspect frame not visible
-	if not InspectFrame or not InspectFrame:IsVisible() then return end
-	
-	for _, slotName in ipairs(equipmentSlots) do
-		local slotID = GetInventorySlotInfo(slotName.."Slot")
-		local button = _G["Inspect"..slotName.."Slot"]
-		if button and button:IsVisible() and slotID then
-			local itemLink = GetInventoryItemLink("target", slotID)
-			colorButtonByLink(button, itemLink)
-		end
-	end
+	updateEquipmentItems("Inspect", "target", InspectFrame)
 end
 
 -- Update merchant item borders
@@ -147,7 +157,7 @@ local function updateMerchantItems()
 		local button = _G["MerchantItem"..i.."ItemButton"]
 		if button and button:IsVisible() then
 			local itemLink = isBuybackTab and GetBuybackItemLink(i) or GetMerchantItemLink(i)
-			colorButtonByLink(button, itemLink)
+			applyBorderColorByLink(button, itemLink)
 		end
 	end
 	
@@ -156,7 +166,7 @@ local function updateMerchantItems()
 		local buybackButton = _G["MerchantBuyBackItemItemButton"]
 		if buybackButton and buybackButton:IsVisible() then
 			local itemLink = GetBuybackItemLink(GetNumBuybackItems())
-			colorButtonByLink(buybackButton, itemLink)
+			applyBorderColorByLink(buybackButton, itemLink)
 		end
 	end
 end
