@@ -30,9 +30,16 @@ local function createQualityBorder(itemButton)
 	qualityBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
 	qualityBorder:SetBlendMode("ADD")
 	qualityBorder:SetAlpha(0.7)
-	qualityBorder:SetWidth(68)
-	qualityBorder:SetHeight(68)
+	qualityBorder:SetWidth(72)
+	qualityBorder:SetHeight(72)
 	qualityBorder:SetPoint("CENTER", itemButton)
+	
+	-- Override positioning for quest reward buttons
+	local buttonName = itemButton:GetName() or ""
+	if string.find(buttonName, "QuestInfoRewardsFrame") then
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 1)
+	end
+	
 	qualityBorder:Hide()
 	
 	itemButton.cfQualityBorder = qualityBorder
@@ -75,6 +82,8 @@ local bankItemButtonCache = {}
 local equipmentSlotButtonCache = {}
 local merchantItemButtonCache = {}
 local buybackItemButtonCache
+local lootItemButtonCache = {}
+local questRewardButtonCache = {}
 
 -- Initialize bag item button cache for specific container frame
 local function initializeBagItemButtonCache(containerFrameName, containerFrameSize)
@@ -158,8 +167,6 @@ local function applyItemQualityBorderByLink(itemButton, itemLink)
 	applyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
-
-
 -- Initialize equipment slot button cache for frame prefix (Character/Inspect)
 local function initializeEquipmentSlotButtonCache(framePrefix)
 	if not equipmentSlotButtonCache[framePrefix] then
@@ -197,8 +204,6 @@ end
 local function updateInspectEquipmentBorders()
 	updateEquipmentItemBorders("Inspect", "target", InspectFrame)
 end
-
-
 
 -- Initialize merchant item button cache
 local function initializeMerchantItemButtonCache()
@@ -242,6 +247,80 @@ local function updateMerchantItemBorders()
 	end
 end
 
+-- Initialize loot item button cache
+local function initializeLootItemButtonCache()
+	if #lootItemButtonCache == 0 then
+		for slotIndex = 1, LOOTFRAME_NUMBUTTONS do -- Usually 4 loot slots
+			lootItemButtonCache[slotIndex] = _G["LootButton"..slotIndex]
+		end
+	end
+end
+
+-- Update loot item quality borders
+local function updateLootItemBorders()
+	if not LootFrame or not LootFrame:IsVisible() then return end
+	
+	initializeLootItemButtonCache()
+	
+	for slotIndex = 1, GetNumLootItems() do
+		local lootButton = lootItemButtonCache[slotIndex]
+		if lootButton and lootButton:IsVisible() then
+			local _, _, _, lootQuality = GetLootSlotInfo(slotIndex)
+			-- Use our unified border application function
+			applyItemQualityBorder(lootButton, lootQuality, nil)
+		end
+	end
+end
+
+-- Initialize quest reward button cache
+local function initializeQuestRewardButtonCache()
+	if #questRewardButtonCache == 0 then
+		-- Based on debug: buttons are in QuestInfoRewardsFrame
+		for slotIndex = 1, 6 do
+			questRewardButtonCache[slotIndex] = _G["QuestInfoRewardsFrameQuestInfoItem"..slotIndex]
+		end
+	end
+end
+
+-- Update quest reward item quality borders
+local function updateQuestRewardBorders()
+	if not QuestFrame or not QuestFrame:IsVisible() then return end
+	
+	initializeQuestRewardButtonCache()
+	
+	-- Handle both quest choices and fixed rewards
+	local numChoices = GetNumQuestChoices()
+	local numRewards = GetNumQuestRewards()
+	local totalItems = numChoices + numRewards
+	
+	for itemIndex = 1, totalItems do
+		local rewardButton = questRewardButtonCache[itemIndex]
+		if rewardButton and rewardButton:IsVisible() then
+			local itemQuality
+			if itemIndex <= numChoices then
+				-- This is a choice reward
+				_, _, _, itemQuality = GetQuestItemInfo("choice", itemIndex)
+			else
+				-- This is a fixed reward
+				_, _, _, itemQuality = GetQuestItemInfo("reward", itemIndex - numChoices)
+			end
+			
+			-- Apply border using our unified function
+			applyItemQualityBorder(rewardButton, itemQuality, nil)
+		end
+	end
+end
+
+
+
+-- TODO: Future frame support
+-- - Quest Log (quest reward items) - hooks not working in Classic
+-- - Trade Window (player trade items)
+-- - Mail Attachments (incoming/outgoing mail items)  
+-- - Auction House (auction items and bids)
+-- - Guild Bank (guild bank items)
+-- - Profession/Tradeskill Windows (reagents and crafted items)
+
 -- Initialize addon event handling and UI hooks
 local addonEventFrame = CreateFrame("Frame")
 addonEventFrame:RegisterEvent("PLAYER_LOGIN")
@@ -262,6 +341,13 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		hooksecurefunc("MerchantFrame_UpdateMerchantInfo", updateMerchantItemBorders)
 		hooksecurefunc("MerchantFrame_UpdateBuybackInfo", updateMerchantItemBorders)
 		
+		-- Hook loot frame updates
+		hooksecurefunc("LootFrame_UpdateButton", updateLootItemBorders)
+		
+		-- Hook quest frame updates
+		hooksecurefunc("QuestInfo_Display", updateQuestRewardBorders)
+		hooksecurefunc("QuestMapFrame_ShowQuestDetails", updateQuestRewardBorders)
+		
 		-- Register inspect events if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
 			self:RegisterEvent("INSPECT_READY")
@@ -272,7 +358,6 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		-- Register inspect events when inspect UI loads
 		self:RegisterEvent("INSPECT_READY")
 		self:RegisterEvent("UNIT_INVENTORY_CHANGED")
-		self:UnregisterEvent("ADDON_LOADED")
 		
 	elseif event == "INSPECT_READY" then
 		-- Update inspect frame when inspection is ready (small delay for item links to load)
@@ -283,5 +368,6 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		if InspectFrame and InspectFrame:IsShown() then
 			updateInspectEquipmentBorders()
 		end
+		
 	end
 end)
