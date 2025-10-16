@@ -1,0 +1,8 @@
+## Interface: 110002
+## Title: cfButtonColors
+## Notes: Simple addon to color action buttons based on range, mana, and usability
+## Author: YourName
+## Version: 1.0
+## SavedVariables: cfButtonColorsDB
+
+cfButtonColors.lua
