@@ -7,7 +7,7 @@ local function createBorder(button)
 	local border = button:CreateTexture(nil, "OVERLAY")
 	border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
 	border:SetBlendMode("ADD")
-	border:SetAlpha(0.5)
+	border:SetAlpha(0.7)
 	border:SetWidth(68)
 	border:SetHeight(68)
 	border:SetPoint("CENTER", button)
@@ -71,10 +71,9 @@ local equipmentSlots = {
 	"Trinket0", "Trinket1", "MainHand", "SecondaryHand", "Ranged", "Ammo"
 }
 
--- Apply quality color to equipment button border
-local function colorEquipmentButton(button, unit, slotID)
+-- Apply quality color to any button border using item link
+local function colorButtonByLink(button, itemLink)
 	local border = createBorder(button)
-	local itemLink = GetInventoryItemLink(unit, slotID)
 	
 	if not itemLink then
 		border:Hide()
@@ -88,7 +87,7 @@ local function colorEquipmentButton(button, unit, slotID)
 		border:Show()
 	elseif quality and quality >= 2 then
 		local r, g, b = GetItemQualityColor(quality)
-			border:SetVertexColor(r, g, b)
+		border:SetVertexColor(r, g, b)
 		border:Show()
 	else
 		border:Hide()
@@ -101,7 +100,8 @@ local function updateCharacterItems()
 		local slotID = GetInventorySlotInfo(slotName.."Slot")
 		local button = _G["Character"..slotName.."Slot"]
 		if button and slotID then
-			colorEquipmentButton(button, "player", slotID)
+			local itemLink = GetInventoryItemLink("player", slotID)
+			colorButtonByLink(button, itemLink)
 		end
 	end
 end
@@ -112,89 +112,35 @@ local function updateInspectItems()
 		local slotID = GetInventorySlotInfo(slotName.."Slot")
 		local button = _G["Inspect"..slotName.."Slot"]
 		if button and slotID then
-			colorEquipmentButton(button, "target", slotID)
+			local itemLink = GetInventoryItemLink("target", slotID)
+			colorButtonByLink(button, itemLink)
 		end
 	end
 end
 
 -- Update merchant item borders
 local function updateMerchantItems()
-	-- Update merchant items (1-12)
+	-- Update main merchant items (1-12)
 	for i = 1, 12 do
 		local button = _G["MerchantItem"..i.."ItemButton"]
 		if button then
-			local border = createBorder(button)
-			local itemLink = GetMerchantItemLink(i)
-			
-			if itemLink then
-				local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
-				
-				if itemType == "Quest" then
-					border:SetVertexColor(1, 1, 0)
-					border:Show()
-				elseif quality and quality >= 2 then
-					local r, g, b = GetItemQualityColor(quality)
-					border:SetVertexColor(r, g, b)
-					border:Show()
-				else
-					border:Hide()
-				end
+			local itemLink
+			if MerchantFrame.selectedTab == 2 then
+				-- Buyback tab - use buyback items
+				itemLink = GetBuybackItemLink(i)
 			else
-				border:Hide()
+				-- Merchant tab - use merchant items
+				itemLink = GetMerchantItemLink(i)
 			end
+			colorButtonByLink(button, itemLink)
 		end
 	end
 	
-	-- Update single buyback slot in merchant tab
+	-- Update single buyback slot (only visible on merchant tab)
 	local buybackButton = _G["MerchantBuyBackItemItemButton"]
 	if buybackButton then
-		local border = createBorder(buybackButton)
 		local itemLink = GetBuybackItemLink(GetNumBuybackItems())
-		
-		if itemLink then
-			local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
-			
-			if itemType == "Quest" then
-				border:SetVertexColor(1, 1, 0)
-				border:Show()
-			elseif quality and quality >= 2 then
-				local r, g, b = GetItemQualityColor(quality)
-				border:SetVertexColor(r, g, b)
-				border:Show()
-			else
-				border:Hide()
-			end
-		else
-			border:Hide()
-		end
-	end
-	
-	-- Update buyback items when on buyback tab (1-12)
-	if MerchantFrame.selectedTab == 2 then -- Tab 2 is buyback
-		for i = 1, 12 do
-			local buybackTabButton = _G["MerchantItem"..i.."ItemButton"]
-			if buybackTabButton then
-				local border = createBorder(buybackTabButton)
-				local itemLink = GetBuybackItemLink(i)
-				
-				if itemLink then
-					local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
-					
-					if itemType == "Quest" then
-						border:SetVertexColor(1, 1, 0)
-						border:Show()
-					elseif quality and quality >= 2 then
-						local r, g, b = GetItemQualityColor(quality)
-						border:SetVertexColor(r, g, b)
-						border:Show()
-					else
-						border:Hide()
-					end
-				else
-					border:Hide()
-				end
-			end
-		end
+		colorButtonByLink(buybackButton, itemLink)
 	end
 end
 
