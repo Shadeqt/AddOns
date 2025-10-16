@@ -48,7 +48,7 @@ local function updateBagItems(frame)
 	
 	for i = 1, frame.size do
 		local button = _G[name.."Item"..i]
-		if button then
+		if button and button:IsVisible() then -- Only process visible buttons
 			colorItemButton(button, bagID, button:GetID())
 		end
 	end
@@ -56,9 +56,12 @@ end
 
 -- Update all bank item borders
 local function updateBankItems()
+	-- Early exit if bank frame not visible
+	if not BankFrame or not BankFrame:IsVisible() then return end
+	
 	for slotID = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
 		local button = _G["BankFrameItem"..slotID]
-		if button then
+		if button and button:IsVisible() then
 			colorItemButton(button, BANK_CONTAINER, slotID)
 		end
 	end
@@ -80,12 +83,20 @@ local function colorButtonByLink(button, itemLink)
 		return
 	end
 	
-	local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
+	-- Extract quality directly from item link (faster than GetItemInfo)
+	local quality = select(3, GetItemInfo(itemLink))
+	if not quality then
+		border:Hide()
+		return
+	end
+	
+	-- Check if it's a quest item by item type
+	local itemType = select(6, GetItemInfo(itemLink))
 	
 	if itemType == "Quest" then
 		border:SetVertexColor(1, 1, 0)
 		border:Show()
-	elseif quality and quality >= 2 then
+	elseif quality >= 2 then
 		local r, g, b = GetItemQualityColor(quality)
 		border:SetVertexColor(r, g, b)
 		border:Show()
@@ -96,10 +107,13 @@ end
 
 -- Update character equipment item borders
 local function updateCharacterItems()
+	-- Early exit if character frame not visible
+	if not CharacterFrame or not CharacterFrame:IsVisible() then return end
+	
 	for _, slotName in ipairs(equipmentSlots) do
 		local slotID = GetInventorySlotInfo(slotName.."Slot")
 		local button = _G["Character"..slotName.."Slot"]
-		if button and slotID then
+		if button and button:IsVisible() and slotID then
 			local itemLink = GetInventoryItemLink("player", slotID)
 			colorButtonByLink(button, itemLink)
 		end
@@ -108,10 +122,13 @@ end
 
 -- Update inspect equipment item borders
 local function updateInspectItems()
+	-- Early exit if inspect frame not visible
+	if not InspectFrame or not InspectFrame:IsVisible() then return end
+	
 	for _, slotName in ipairs(equipmentSlots) do
 		local slotID = GetInventorySlotInfo(slotName.."Slot")
 		local button = _G["Inspect"..slotName.."Slot"]
-		if button and slotID then
+		if button and button:IsVisible() and slotID then
 			local itemLink = GetInventoryItemLink("target", slotID)
 			colorButtonByLink(button, itemLink)
 		end
@@ -120,27 +137,27 @@ end
 
 -- Update merchant item borders
 local function updateMerchantItems()
+	-- Early exit if merchant frame not visible
+	if not MerchantFrame or not MerchantFrame:IsVisible() then return end
+	
+	local isBuybackTab = MerchantFrame.selectedTab == 2
+	
 	-- Update main merchant items (1-12)
 	for i = 1, 12 do
 		local button = _G["MerchantItem"..i.."ItemButton"]
-		if button then
-			local itemLink
-			if MerchantFrame.selectedTab == 2 then
-				-- Buyback tab - use buyback items
-				itemLink = GetBuybackItemLink(i)
-			else
-				-- Merchant tab - use merchant items
-				itemLink = GetMerchantItemLink(i)
-			end
+		if button and button:IsVisible() then
+			local itemLink = isBuybackTab and GetBuybackItemLink(i) or GetMerchantItemLink(i)
 			colorButtonByLink(button, itemLink)
 		end
 	end
 	
-	-- Update single buyback slot (only visible on merchant tab)
-	local buybackButton = _G["MerchantBuyBackItemItemButton"]
-	if buybackButton then
-		local itemLink = GetBuybackItemLink(GetNumBuybackItems())
-		colorButtonByLink(buybackButton, itemLink)
+	-- Update single buyback slot (only on merchant tab)
+	if not isBuybackTab then
+		local buybackButton = _G["MerchantBuyBackItemItemButton"]
+		if buybackButton and buybackButton:IsVisible() then
+			local itemLink = GetBuybackItemLink(GetNumBuybackItems())
+			colorButtonByLink(buybackButton, itemLink)
+		end
 	end
 end
 
