@@ -1,5 +1,5 @@
--- Quality color mapping (cached for performance)
-local qualityColors = {
+-- Item quality color definitions: {r, g, b}
+local itemQualityColors = {
 	[0] = {0.62, 0.62, 0.62}, -- Poor (gray)
 	[1] = {1.00, 1.00, 1.00}, -- Common (white)
 	[2] = {0.12, 1.00, 0.00}, -- Uncommon (green)
@@ -11,258 +11,277 @@ local qualityColors = {
 	Quest = {1.00, 1.00, 0.00}, -- Quest items (yellow)
 }
 
--- Get quality color (with centralized color control)
-local function getQualityColor(quality)
-	local color = qualityColors[quality]
-	if not color then
+-- Get RGB values for item quality color
+local function getItemQualityColor(quality)
+	local colorData = itemQualityColors[quality]
+	if not colorData then
 		return 1, 1, 1 -- Default to white
 	end
-	return color[1], color[2], color[3]
+	return colorData[1], colorData[2], colorData[3]
 end
 
--- Create border texture for item buttons
-local function createBorder(button)
-	if button.cfQualityBorder then
-		return button.cfQualityBorder
+-- Create quality border texture for item button
+local function createQualityBorder(itemButton)
+	if itemButton.cfQualityBorder then
+		return itemButton.cfQualityBorder
 	end
 	
-	local border = button:CreateTexture(nil, "OVERLAY")
-	border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-	border:SetBlendMode("ADD")
-	border:SetAlpha(0.7)
-	border:SetWidth(68)
-	border:SetHeight(68)
-	border:SetPoint("CENTER", button)
-	border:Hide()
+	local qualityBorder = itemButton:CreateTexture(nil, "OVERLAY")
+	qualityBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+	qualityBorder:SetBlendMode("ADD")
+	qualityBorder:SetAlpha(0.7)
+	qualityBorder:SetWidth(68)
+	qualityBorder:SetHeight(68)
+	qualityBorder:SetPoint("CENTER", itemButton)
+	qualityBorder:Hide()
 	
-	button.cfQualityBorder = border
-	return border
+	itemButton.cfQualityBorder = qualityBorder
+	return qualityBorder
 end
 
--- Apply quality color to any button border (unified function)
-local function applyBorderColor(button, quality, itemType)
-	local border = createBorder(button)
+-- Apply quality color to item button border based on item quality and type
+local function applyItemQualityBorder(itemButton, itemQuality, itemType)
+	local qualityBorder = createQualityBorder(itemButton)
 	
 	if itemType == "Quest" then
-		local r, g, b = getQualityColor(itemType)
-		border:SetVertexColor(r, g, b)
-		border:Show()
-	elseif quality and quality >= 2 then
-		local r, g, b = getQualityColor(quality)
-		border:SetVertexColor(r, g, b)
-		border:Show()
+		local r, g, b = getItemQualityColor(itemType)
+		qualityBorder:SetVertexColor(r, g, b)
+		qualityBorder:Show()
+	elseif itemQuality and itemQuality >= 2 then
+		local r, g, b = getItemQualityColor(itemQuality)
+		qualityBorder:SetVertexColor(r, g, b)
+		qualityBorder:Show()
 	else
-		border:Hide()
+		qualityBorder:Hide()
 	end
 end
 
--- Apply quality color to container item button (optimized single GetItemInfo call)
-local function applyContainerBorderColor(button, containerID, slotID)
+-- Apply quality border to container item button (bags/bank)
+local function applyContainerItemBorder(itemButton, containerID, slotID)
 	local itemID = C_Container.GetContainerItemID(containerID, slotID)
 	
 	if not itemID then
-		createBorder(button):Hide()
+		createQualityBorder(itemButton):Hide()
 		return
 	end
 	
-	local _, _, quality, _, _, itemType = GetItemInfo(itemID)
-	applyBorderColor(button, quality, itemType)
+	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemID)
+	applyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
--- Button caches (centralized)
-local bagButtonCache = {}
-local bankButtonCache = {}
-local equipmentButtonCache = {}
-local merchantButtonCache = {}
-local buybackButtonCache
+-- Button caches for performance optimization
+local bagItemButtonCache = {}
+local bankItemButtonCache = {}
+local equipmentSlotButtonCache = {}
+local merchantItemButtonCache = {}
+local buybackItemButtonCache
 
--- Initialize bag button cache for a specific frame
-local function initBagButtonCache(frameName, frameSize)
-	if not bagButtonCache[frameName] then
-		bagButtonCache[frameName] = {}
-		for i = 1, frameSize do
-			bagButtonCache[frameName][i] = _G[frameName.."Item"..i]
+-- Initialize bag item button cache for specific container frame
+local function initializeBagItemButtonCache(containerFrameName, containerFrameSize)
+	if not bagItemButtonCache[containerFrameName] then
+		bagItemButtonCache[containerFrameName] = {}
+		for slotIndex = 1, containerFrameSize do
+			bagItemButtonCache[containerFrameName][slotIndex] = _G[containerFrameName.."Item"..slotIndex]
 		end
 	end
 end
 
--- Initialize bank button cache
-local function initBankButtonCache(numSlots)
-	if #bankButtonCache == 0 then
-		for slotID = 1, numSlots do
-			bankButtonCache[slotID] = _G["BankFrameItem"..slotID]
+-- Initialize bank item button cache
+local function initializeBankItemButtonCache(bankSlotCount)
+	if #bankItemButtonCache == 0 then
+		for slotID = 1, bankSlotCount do
+			bankItemButtonCache[slotID] = _G["BankFrameItem"..slotID]
 		end
 	end
 end
 
--- Update bag item borders (clean with dedicated cache init)
-local function updateBagBorders(frame)
-	local bagID = frame:GetID()
-	local name = frame:GetName()
+-- Update bag item quality borders for container frame
+local function updateBagItemBorders(containerFrame)
+	local containerID = containerFrame:GetID()
+	local containerFrameName = containerFrame:GetName()
 	
-	initBagButtonCache(name, frame.size)
+	initializeBagItemButtonCache(containerFrameName, containerFrame.size)
 	
-	for i = 1, frame.size do
-		local button = bagButtonCache[name][i]
-		if button and button:IsVisible() then
-			applyContainerBorderColor(button, bagID, button:GetID())
+	for slotIndex = 1, containerFrame.size do
+		local itemButton = bagItemButtonCache[containerFrameName][slotIndex]
+		if itemButton and itemButton:IsVisible() then
+			applyContainerItemBorder(itemButton, containerID, itemButton:GetID())
 		end
 	end
 end
 
--- Update bank item borders (optimized single API call)
-local function updateBankBorders()
+-- Update bank item quality borders
+local function updateBankItemBorders()
 	if not BankFrame or not BankFrame:IsVisible() then return end
 	
-	local numSlots = C_Container.GetContainerNumSlots(BANK_CONTAINER)
-	initBankButtonCache(numSlots)
+	local bankSlotCount = C_Container.GetContainerNumSlots(BANK_CONTAINER)
+	initializeBankItemButtonCache(bankSlotCount)
 	
-	for slotID = 1, numSlots do
-		local button = bankButtonCache[slotID]
-		if button and button:IsVisible() then
-			applyContainerBorderColor(button, BANK_CONTAINER, slotID)
+	for slotID = 1, bankSlotCount do
+		local itemButton = bankItemButtonCache[slotID]
+		if itemButton and itemButton:IsVisible() then
+			applyContainerItemBorder(itemButton, BANK_CONTAINER, slotID)
 		end
 	end
 end
 
 -- Equipment slot names for character and inspect frames
-local equipmentSlots = {
+local equipmentSlotNames = {
 	"Head", "Neck", "Shoulder", "Back", "Chest", "Shirt", "Tabard",
 	"Wrist", "Hands", "Waist", "Legs", "Feet", "Finger0", "Finger1",
 	"Trinket0", "Trinket1", "MainHand", "SecondaryHand", "Ranged", "Ammo"
 }
 
--- Apply quality color to button using item link (optimized single GetItemInfo call)
-local function applyBorderColorByLink(button, itemLink)
-	if not itemLink then
-		createBorder(button):Hide()
-		return
-	end
-	
-	local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
-	if not quality then
-		createBorder(button):Hide()
-		return
-	end
-	
-	applyBorderColor(button, quality, itemType)
-end
-
-
-
--- Initialize equipment button cache for a frame prefix
-local function initEquipmentButtonCache(framePrefix)
-	if not equipmentButtonCache[framePrefix] then
-		equipmentButtonCache[framePrefix] = {}
-		for _, slotName in ipairs(equipmentSlots) do
-			local buttonName = framePrefix..slotName.."Slot"
-			equipmentButtonCache[framePrefix][slotName] = _G[buttonName]
+-- Cached equipment slot IDs (eliminates repeated GetInventorySlotInfo calls)
+local equipmentSlotIDCache = {}
+local function initializeEquipmentSlotIDCache()
+	if next(equipmentSlotIDCache) == nil then
+		for _, slotName in ipairs(equipmentSlotNames) do
+			equipmentSlotIDCache[slotName] = GetInventorySlotInfo(slotName.."Slot")
 		end
 	end
 end
 
--- Update equipment item borders (clean with dedicated cache init)
-local function updateEquipmentItems(framePrefix, unit, parentFrame)
+-- Apply quality border to item button using item link
+local function applyItemQualityBorderByLink(itemButton, itemLink)
+	if not itemLink then
+		createQualityBorder(itemButton):Hide()
+		return
+	end
+	
+	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
+	if not itemQuality then
+		createQualityBorder(itemButton):Hide()
+		return
+	end
+	
+	applyItemQualityBorder(itemButton, itemQuality, itemType)
+end
+
+
+
+-- Initialize equipment slot button cache for frame prefix (Character/Inspect)
+local function initializeEquipmentSlotButtonCache(framePrefix)
+	if not equipmentSlotButtonCache[framePrefix] then
+		equipmentSlotButtonCache[framePrefix] = {}
+		for _, slotName in ipairs(equipmentSlotNames) do
+			local equipmentButtonName = framePrefix..slotName.."Slot"
+			equipmentSlotButtonCache[framePrefix][slotName] = _G[equipmentButtonName]
+		end
+	end
+end
+
+-- Update equipment item quality borders for character or inspect frame
+local function updateEquipmentItemBorders(framePrefix, unitID, parentFrame)
 	if not parentFrame or not parentFrame:IsVisible() then return end
 	
-	initEquipmentButtonCache(framePrefix)
+	initializeEquipmentSlotButtonCache(framePrefix)
+	initializeEquipmentSlotIDCache()
 	
-	for _, slotName in ipairs(equipmentSlots) do
-		local slotID = GetInventorySlotInfo(slotName.."Slot")
-		local button = equipmentButtonCache[framePrefix][slotName]
-		if button and button:IsVisible() and slotID then
-			local itemLink = GetInventoryItemLink(unit, slotID)
-			applyBorderColorByLink(button, itemLink)
+	for _, slotName in ipairs(equipmentSlotNames) do
+		local slotID = equipmentSlotIDCache[slotName]
+		local equipmentButton = equipmentSlotButtonCache[framePrefix][slotName]
+		if equipmentButton and equipmentButton:IsVisible() and slotID then
+			local itemLink = GetInventoryItemLink(unitID, slotID)
+			applyItemQualityBorderByLink(equipmentButton, itemLink)
 		end
 	end
 end
 
--- Update character equipment item borders
-local function updateCharacterItems()
-	updateEquipmentItems("Character", "player", CharacterFrame)
+-- Update character equipment item quality borders
+local function updateCharacterEquipmentBorders()
+	updateEquipmentItemBorders("Character", "player", CharacterFrame)
 end
 
--- Update inspect equipment item borders
-local function updateInspectItems()
-	updateEquipmentItems("Inspect", "target", InspectFrame)
+-- Update inspect equipment item quality borders
+local function updateInspectEquipmentBorders()
+	updateEquipmentItemBorders("Inspect", "target", InspectFrame)
 end
 
 
 
--- Initialize merchant button cache
-local function initMerchantButtonCache()
-	if #merchantButtonCache == 0 then
-		for i = 1, 12 do
-			merchantButtonCache[i] = _G["MerchantItem"..i.."ItemButton"]
+-- Initialize merchant item button cache
+local function initializeMerchantItemButtonCache()
+	if #merchantItemButtonCache == 0 then
+		for slotIndex = 1, 12 do
+			merchantItemButtonCache[slotIndex] = _G["MerchantItem"..slotIndex.."ItemButton"]
 		end
-		buybackButtonCache = _G["MerchantBuyBackItemItemButton"]
+		buybackItemButtonCache = _G["MerchantBuyBackItemItemButton"]
 	end
 end
 
--- Update merchant item borders (clean with dedicated cache init)
-local function updateMerchantItems()
+-- Update merchant item quality borders
+local function updateMerchantItemBorders()
 	if not MerchantFrame or not MerchantFrame:IsVisible() then return end
 	
-	initMerchantButtonCache()
+	initializeMerchantItemButtonCache()
 	
-	local isBuybackTab = MerchantFrame.selectedTab == 2
+	local isOnBuybackTab = MerchantFrame.selectedTab == 2
 	
-	-- Update main merchant items (1-12)
-	for i = 1, 12 do
-		local button = merchantButtonCache[i]
-		if button and button:IsVisible() then
-			local itemLink = isBuybackTab and GetBuybackItemLink(i) or GetMerchantItemLink(i)
-			applyBorderColorByLink(button, itemLink)
+	-- Update main merchant item slots (1-12)
+	for slotIndex = 1, 12 do
+		local merchantButton = merchantItemButtonCache[slotIndex]
+		if merchantButton and merchantButton:IsVisible() then
+			local itemLink = isOnBuybackTab and GetBuybackItemLink(slotIndex) or GetMerchantItemLink(slotIndex)
+			applyItemQualityBorderByLink(merchantButton, itemLink)
 		end
 	end
 	
-	-- Update buyback slot (only on merchant tab)
-	if not isBuybackTab and buybackButtonCache and buybackButtonCache:IsVisible() then
-		local itemLink = GetBuybackItemLink(GetNumBuybackItems())
-		applyBorderColorByLink(buybackButtonCache, itemLink)
+	-- Update buyback slot (only visible on merchant tab)
+	if not isOnBuybackTab and buybackItemButtonCache and buybackItemButtonCache:IsVisible() then
+		-- Find most recent buyback item efficiently
+		local mostRecentBuybackLink
+		for slotIndex = 12, 1, -1 do  -- Search backwards for efficiency
+			local buybackLink = GetBuybackItemLink(slotIndex)
+			if buybackLink then
+				mostRecentBuybackLink = buybackLink
+				break
+			end
+		end
+		applyItemQualityBorderByLink(buybackItemButtonCache, mostRecentBuybackLink)
 	end
 end
 
--- Initialize hooks on login
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("PLAYER_LOGIN")
-frame:RegisterEvent("ADDON_LOADED")
+-- Initialize addon event handling and UI hooks
+local addonEventFrame = CreateFrame("Frame")
+addonEventFrame:RegisterEvent("PLAYER_LOGIN")
+addonEventFrame:RegisterEvent("ADDON_LOADED")
 
-frame:SetScript("OnEvent", function(self, event, arg1)
+addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 	if event == "PLAYER_LOGIN" then
-		-- Hook bag container updates
-		hooksecurefunc("ContainerFrame_Update", updateBagBorders)
+		-- Hook bag container frame updates
+		hooksecurefunc("ContainerFrame_Update", updateBagItemBorders)
 		
-		-- Hook bank frame updates
-		hooksecurefunc("BankFrameItemButton_Update", updateBankBorders)
+		-- Hook bank frame item updates
+		hooksecurefunc("BankFrameItemButton_Update", updateBankItemBorders)
 		
-		-- Hook character frame updates
-		hooksecurefunc("PaperDollItemSlotButton_Update", updateCharacterItems)
+		-- Hook character equipment updates
+		hooksecurefunc("PaperDollItemSlotButton_Update", updateCharacterEquipmentBorders)
 		
 		-- Hook merchant frame updates
-		hooksecurefunc("MerchantFrame_UpdateMerchantInfo", updateMerchantItems)
-		hooksecurefunc("MerchantFrame_UpdateBuybackInfo", updateMerchantItems)
+		hooksecurefunc("MerchantFrame_UpdateMerchantInfo", updateMerchantItemBorders)
+		hooksecurefunc("MerchantFrame_UpdateBuybackInfo", updateMerchantItemBorders)
 		
-		-- Check if inspect UI is already loaded
+		-- Register inspect events if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
-			frame:RegisterEvent("INSPECT_READY")
-			frame:RegisterEvent("UNIT_INVENTORY_CHANGED")
+			self:RegisterEvent("INSPECT_READY")
+			self:RegisterEvent("UNIT_INVENTORY_CHANGED")
 		end
 		
-	elseif event == "ADDON_LOADED" and arg1 == "Blizzard_InspectUI" then
+	elseif event == "ADDON_LOADED" and addonName == "Blizzard_InspectUI" then
 		-- Register inspect events when inspect UI loads
-		frame:RegisterEvent("INSPECT_READY")
-		frame:RegisterEvent("UNIT_INVENTORY_CHANGED")
-		frame:UnregisterEvent("ADDON_LOADED")
+		self:RegisterEvent("INSPECT_READY")
+		self:RegisterEvent("UNIT_INVENTORY_CHANGED")
+		self:UnregisterEvent("ADDON_LOADED")
 		
 	elseif event == "INSPECT_READY" then
-		-- Update inspect frame when inspection is ready (small delay for item links)
-		C_Timer.After(0.01, updateInspectItems)
+		-- Update inspect frame when inspection is ready (small delay for item links to load)
+		C_Timer.After(0.01, updateInspectEquipmentBorders)
 		
-	elseif event == "UNIT_INVENTORY_CHANGED" and arg1 == "target" then
+	elseif event == "UNIT_INVENTORY_CHANGED" and addonName == "target" then
 		-- Update inspect frame when target's inventory changes
 		if InspectFrame and InspectFrame:IsShown() then
-			updateInspectItems()
+			updateInspectEquipmentBorders()
 		end
 	end
 end)
