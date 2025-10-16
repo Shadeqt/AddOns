@@ -7,7 +7,7 @@ local function createBorder(button)
 	local border = button:CreateTexture(nil, "OVERLAY")
 	border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
 	border:SetBlendMode("ADD")
-	border:SetAlpha(0.8)
+	border:SetAlpha(0.5)
 	border:SetWidth(68)
 	border:SetHeight(68)
 	border:SetPoint("CENTER", button)
@@ -34,7 +34,7 @@ local function colorItemButton(button, containerID, slotID)
 		border:Show()
 	elseif quality and quality >= 2 then
 		local r, g, b = GetItemQualityColor(quality)
-		border:SetVertexColor(r, g, b)
+			border:SetVertexColor(r, g, b)
 		border:Show()
 	else
 		border:Hide()
@@ -71,41 +71,37 @@ local equipmentSlots = {
 	"Trinket0", "Trinket1", "MainHand", "SecondaryHand", "Ranged", "Ammo"
 }
 
+-- Apply quality color to equipment button border
+local function colorEquipmentButton(button, unit, slotID)
+	local border = createBorder(button)
+	local itemLink = GetInventoryItemLink(unit, slotID)
+	
+	if not itemLink then
+		border:Hide()
+		return
+	end
+	
+	local _, _, quality, _, _, itemType = GetItemInfo(itemLink)
+	
+	if itemType == "Quest" then
+		border:SetVertexColor(1, 1, 0)
+		border:Show()
+	elseif quality and quality >= 2 then
+		local r, g, b = GetItemQualityColor(quality)
+			border:SetVertexColor(r, g, b)
+		border:Show()
+	else
+		border:Hide()
+	end
+end
+
 -- Update character equipment item borders
 local function updateCharacterItems()
 	for _, slotName in ipairs(equipmentSlots) do
 		local slotID = GetInventorySlotInfo(slotName.."Slot")
 		local button = _G["Character"..slotName.."Slot"]
 		if button and slotID then
-			local itemID = GetInventoryItemID("player", slotID)
-			if itemID then
-				local border = createBorder(button)
-				local _, _, quality, _, _, itemType = GetItemInfo(itemID)
-				
-				if itemType == "Quest" then
-					border:SetVertexColor(1, 1, 0)
-					border:Show()
-				elseif quality and quality >= 2 then
-					local r, g, b = GetItemQualityColor(quality)
-					border:SetVertexColor(r, g, b)
-					border:Show()
-				else
-					border:Hide()
-				end
-			else
-				local border = createBorder(button)
-				border:Hide()
-			end
-		end
-	end
-end
-
--- Hide all inspect borders (called when inspect opens)
-local function hideInspectBorders()
-	for _, slotName in ipairs(equipmentSlots) do
-		local button = _G["Inspect"..slotName.."Slot"]
-		if button and button.cfQualityBorder then
-			button.cfQualityBorder:Hide()
+			colorEquipmentButton(button, "player", slotID)
 		end
 	end
 end
@@ -116,25 +112,7 @@ local function updateInspectItems()
 		local slotID = GetInventorySlotInfo(slotName.."Slot")
 		local button = _G["Inspect"..slotName.."Slot"]
 		if button and slotID then
-			local itemID = GetInventoryItemID("target", slotID)
-			if itemID then
-				local border = createBorder(button)
-				local _, _, quality, _, _, itemType = GetItemInfo(itemID)
-				
-				if itemType == "Quest" then
-					border:SetVertexColor(1, 1, 0)
-					border:Show()
-				elseif quality and quality >= 2 then
-					local r, g, b = GetItemQualityColor(quality)
-					border:SetVertexColor(r, g, b)
-					border:Show()
-				else
-					border:Hide()
-				end
-			else
-				local border = createBorder(button)
-				border:Hide()
-			end
+			colorEquipmentButton(button, "target", slotID)
 		end
 	end
 end
@@ -159,21 +137,17 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 		if IsAddOnLoaded("Blizzard_InspectUI") then
 			frame:RegisterEvent("INSPECT_READY")
 			frame:RegisterEvent("UNIT_INVENTORY_CHANGED")
-			-- Hook inspect frame show to hide borders initially
-			hooksecurefunc("InspectFrame_Show", hideInspectBorders)
 		end
 		
 	elseif event == "ADDON_LOADED" and arg1 == "Blizzard_InspectUI" then
 		-- Register inspect events when inspect UI loads
 		frame:RegisterEvent("INSPECT_READY")
 		frame:RegisterEvent("UNIT_INVENTORY_CHANGED")
-		-- Hook inspect frame show to hide borders initially
-		hooksecurefunc("InspectFrame_Show", hideInspectBorders)
 		frame:UnregisterEvent("ADDON_LOADED")
 		
 	elseif event == "INSPECT_READY" then
-		-- Update inspect frame when inspection is ready (with small delay for item data)
-		C_Timer.After(0.05, updateInspectItems)
+		-- Update inspect frame when inspection is ready (small delay for item links)
+		C_Timer.After(0.01, updateInspectItems)
 		
 	elseif event == "UNIT_INVENTORY_CHANGED" and arg1 == "target" then
 		-- Update inspect frame when target's inventory changes
