@@ -1,0 +1,8 @@
+## Interface: 11507
+## Title: cfItemColors
+## Notes: Simple addon to color item borders based on quality
+## Author: YourName
+## Version: 1.0
+## SavedVariables: cfItemColorsDB
+
+cfItemColors.lua
