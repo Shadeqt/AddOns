@@ -63,6 +63,17 @@ end
 -- UPDATE FUNCTIONS
 -- ============================
 
+-- Core function to update quest item borders (works for both reward and log)
+local function updateQuestItemBordersCore(buttonCache, numChoices, totalItems, isQuestLog)
+	for itemIndex = 1, totalItems do
+		local itemButton = buttonCache[itemIndex]
+		if itemButton and itemButton:IsVisible() then
+			local itemQuality = getQuestItemQuality(itemIndex, numChoices, isQuestLog)
+			addon:ApplyItemQualityBorder(itemButton, itemQuality, nil)
+		end
+	end
+end
+
 -- Update quest reward item quality borders
 local function updateQuestRewardBorders()
 	if not addon:IsFrameVisible(QuestFrame) then return end
@@ -73,13 +84,7 @@ local function updateQuestRewardBorders()
 	local numRewards = GetNumQuestRewards()
 	local totalItems = numChoices + numRewards
 
-	for itemIndex = 1, totalItems do
-		local rewardButton = questRewardButtonCache[itemIndex]
-		if rewardButton and rewardButton:IsVisible() then
-			local itemQuality = getQuestItemQuality(itemIndex, numChoices, false)
-			addon:ApplyItemQualityBorder(rewardButton, itemQuality, nil)
-		end
-	end
+	updateQuestItemBordersCore(questRewardButtonCache, numChoices, totalItems, false)
 end
 
 -- Update quest log item quality borders
@@ -95,13 +100,7 @@ local function updateQuestLogBorders()
 	local numRewards = GetNumQuestLogRewards()
 	local totalItems = numChoices + numRewards
 
-	for itemIndex = 1, totalItems do
-		local itemButton = questLogButtonCache[itemIndex]
-		if itemButton and itemButton:IsVisible() then
-			local itemQuality = getQuestItemQuality(itemIndex, numChoices, true)
-			addon:ApplyItemQualityBorder(itemButton, itemQuality, nil)
-		end
-	end
+	updateQuestItemBordersCore(questLogButtonCache, numChoices, totalItems, true)
 end
 
 -- ============================
