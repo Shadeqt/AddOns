@@ -1,3 +1,6 @@
+-- Quality constants for efficient comparison
+local QUEST_ITEM_QUALITY = 99
+
 -- Item quality color definitions: {r, g, b}
 local itemQualityColors = {
 	[0] = {0.62, 0.62, 0.62}, -- Poor (gray)
@@ -8,8 +11,11 @@ local itemQualityColors = {
 	[5] = {1.00, 0.50, 0.00}, -- Legendary (orange)
 	[6] = {0.90, 0.80, 0.50}, -- Artifact (light orange)
 	[7] = {0.00, 0.80, 1.00}, -- Heirloom (light blue)
-	Quest = {1.00, 1.00, 0.00}, -- Quest items (yellow)
+	[QUEST_ITEM_QUALITY] = {1.00, 1.00, 0.00}, -- Quest items (yellow)
 }
+
+-- State cache to prevent redundant border updates
+local buttonQualityStates = {}
 
 -- Get RGB values for item quality color
 local function getItemQualityColor(quality)
@@ -48,14 +54,23 @@ end
 
 -- Apply quality color to item button border based on item quality and type
 local function applyItemQualityBorder(itemButton, itemQuality, itemType)
+	-- Convert to numeric state key for efficient comparison
+	local stateKey = (itemType == "Quest" and QUEST_ITEM_QUALITY) or itemQuality or 0
+	
+	-- Skip if state hasn't changed
+	if buttonQualityStates[itemButton] == stateKey then
+		return
+	end
+	
+	buttonQualityStates[itemButton] = stateKey
 	local qualityBorder = createQualityBorder(itemButton)
 	
-	if itemType == "Quest" then
-		local r, g, b = getItemQualityColor(itemType)
+	if stateKey == QUEST_ITEM_QUALITY then
+		local r, g, b = getItemQualityColor(QUEST_ITEM_QUALITY)
 		qualityBorder:SetVertexColor(r, g, b)
 		qualityBorder:Show()
-	elseif itemQuality and itemQuality >= 2 then
-		local r, g, b = getItemQualityColor(itemQuality)
+	elseif stateKey >= 2 then
+		local r, g, b = getItemQualityColor(stateKey)
 		qualityBorder:SetVertexColor(r, g, b)
 		qualityBorder:Show()
 	else
