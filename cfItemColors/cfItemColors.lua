@@ -320,14 +320,14 @@ end
 local function updateQuestRewardBorders()
 	if not QuestFrame then return end
 	if not QuestFrame:IsVisible() then return end
-	
+
 	initializeQuestRewardButtonCache()
-	
+
 	-- Handle both quest choices and fixed rewards
 	local numChoices = GetNumQuestChoices()
 	local numRewards = GetNumQuestRewards()
 	local totalItems = numChoices + numRewards
-	
+
 	for itemIndex = 1, totalItems do
 		local rewardButton = questRewardButtonCache[itemIndex]
 		if rewardButton and rewardButton:IsVisible() then
@@ -340,7 +340,7 @@ local function updateQuestRewardBorders()
 				local rewardIndex = itemIndex - numChoices
 				_, _, _, itemQuality = GetQuestItemInfo("reward", rewardIndex)
 			end
-			
+
 			-- Apply border using our unified function
 			applyItemQualityBorder(rewardButton, itemQuality, nil)
 		end
@@ -465,7 +465,7 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		
 		-- Hook quest frame updates
 		hooksecurefunc("QuestInfo_Display", updateQuestRewardBorders)
-		hooksecurefunc("QuestFrame_SetMaterial", updateQuestRewardBorders)
+		hooksecurefunc("QuestFrameItems_Update", updateQuestRewardBorders)
 		
 		-- Hook quest log updates
 		self:RegisterEvent("QUEST_LOG_UPDATE")
