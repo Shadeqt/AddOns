@@ -5,9 +5,9 @@ local BUTTON_STATE_OUT_OF_RANGE = 2
 
 -- Button color definitions: {r, g, b, a, isDesaturated}
 local buttonColorStates = {
-	[BUTTON_STATE_NORMAL] = {1.00, 1.00, 1.00, 1.00, false},
-	[BUTTON_STATE_OUT_OF_MANA] = {0.10, 0.30, 1.00, 1.00, true},
-	[BUTTON_STATE_OUT_OF_RANGE] = {1.00, 0.30, 0.10, 1.00, true},
+	[BUTTON_STATE_NORMAL] = {1.00, 1.00, 1.00, 1.00, false}, -- Normal (white)
+	[BUTTON_STATE_OUT_OF_MANA] = {0.10, 0.30, 1.00, 1.00, true}, -- Out of mana (blue)
+	[BUTTON_STATE_OUT_OF_RANGE] = {1.00, 0.30, 0.10, 1.00, true}, -- Out of range (red)
 }
 
 -- State cache to prevent redundant color updates
@@ -17,8 +17,8 @@ local buttonColorStateCache = {}
 local petActionButtonCache = {}
 
 -- Get RGBA values for button color state
-local function getButtonColorState(colorState)
-	local colorData = buttonColorStates[colorState]
+local function getButtonColorState(stateKey)
+	local colorData = buttonColorStates[stateKey]
 	if not colorData then
 		return 1, 1, 1, 1, false -- Default to normal
 	end
@@ -37,17 +37,17 @@ local function determineButtonColorState(isOutOfMana, isOutOfRange)
 end
 
 -- Apply color state to button icon if state has changed
-local function applyButtonColorState(buttonIcon, colorState)
+local function applyButtonColorState(buttonIcon, stateKey)
 	-- Skip if state hasn't changed
-	if buttonColorStateCache[buttonIcon] == colorState then return end
+	if buttonColorStateCache[buttonIcon] == stateKey then return end
 	
-	buttonColorStateCache[buttonIcon] = colorState
-	local r, g, b, a, isDesaturated = getButtonColorState(colorState)
+	buttonColorStateCache[buttonIcon] = stateKey
+	local r, g, b, a, isDesaturated = getButtonColorState(stateKey)
 	buttonIcon:SetVertexColor(r, g, b, a)
 	buttonIcon:SetDesaturated(isDesaturated)
 end
 
--- Apply color state to player action button based on usability and range
+-- Apply color state to player action button (action bars)
 local function updatePlayerActionButtonColor(actionButton)
 	if not actionButton then return end
 	if not actionButton.action then return end
@@ -58,27 +58,27 @@ local function updatePlayerActionButtonColor(actionButton)
 	local isUsable, isOutOfMana = IsUsableAction(actionButton.action)
 	local isOutOfRange = IsActionInRange(actionButton.action) == false
 
-	local colorState = determineButtonColorState(isOutOfMana, isOutOfRange)
-	applyButtonColorState(actionButton.icon, colorState)
+	local stateKey = determineButtonColorState(isOutOfMana, isOutOfRange)
+	applyButtonColorState(actionButton.icon, stateKey)
 end
 
--- Apply color state to pet action button based on usability and range
+-- Apply color state to pet action button (pet action bar)
 local function updatePetActionButtonColor(petButton)
 	if not petButton then return end
 	if not petButton.icon then return end
 	if not petButton:IsVisible() then return end
 
-	local petActionSlot = petButton:GetID()
-	if not petActionSlot then return end
+	local slotId = petButton:GetID()
+	if not slotId then return end
 
-	local _, _, _, _, _, _, spellId, hasRangeCheck, isInRange = GetPetActionInfo(petActionSlot)
+	local _, _, _, _, _, _, spellId, hasRangeCheck, isInRange = GetPetActionInfo(slotId)
 	if not spellId and not hasRangeCheck then return end
 	
 	local isOutOfRange = hasRangeCheck and not isInRange
 	local isOutOfMana = spellId and select(2, C_Spell.IsSpellUsable(spellId)) or false
 
-	local colorState = determineButtonColorState(isOutOfMana, isOutOfRange)
-	applyButtonColorState(petButton.icon, colorState)
+	local stateKey = determineButtonColorState(isOutOfMana, isOutOfRange)
+	applyButtonColorState(petButton.icon, stateKey)
 end
 
 -- Update all visible pet action button colors
@@ -102,14 +102,14 @@ local function initializePetActionButtonCache()
 	end
 end
 
--- Initialize player action button color hooks
-local function initializePlayerActionButtonColoring()
+-- Initialize player action button hooks
+local function initializePlayerActionButtonHooks()
 	hooksecurefunc("ActionButton_UpdateUsable", updatePlayerActionButtonColor)
 	hooksecurefunc("ActionButton_UpdateRangeIndicator", updatePlayerActionButtonColor)
 end
 
--- Initialize pet action button color hooks and events
-local function initializePetActionButtonColoring(eventFrame)
+-- Initialize pet action button hooks and events
+local function initializePetActionButtonHooks(eventFrame)
 	initializePetActionButtonCache()
 	
 	for slotIndex = 1, NUM_PET_ACTION_SLOTS do
@@ -141,12 +141,12 @@ addonEventFrame:RegisterEvent("PLAYER_LOGIN")
 
 addonEventFrame:SetScript("OnEvent", function(self, event, ...)
 	if event == "PLAYER_LOGIN" then
-		-- Initialize player action button coloring
-		initializePlayerActionButtonColoring()
+		-- Hook player action button updates
+		initializePlayerActionButtonHooks()
 		
-		-- Initialize pet action button coloring for classes that have pets
+		-- Hook pet action button updates for classes that have pets
 		if doesPlayerClassHavePets() then
-			initializePetActionButtonColoring(self)
+			initializePetActionButtonHooks(self)
 		end
 		return
 	end
