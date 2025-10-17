@@ -45,6 +45,14 @@ end
 -- BORDER APPLICATION
 -- ============================
 
+-- Hide border and clear cache for button (prevents creating border just to hide it)
+function addon:HideBorder(itemButton)
+	if itemButton.cfQualityBorder then
+		itemButton.cfQualityBorder:Hide()
+		self.buttonQualityStateCache[itemButton] = 0
+	end
+end
+
 -- Apply quality color to item button border based on item quality and type
 function addon:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
 	-- Convert to numeric state key for efficient comparison
@@ -71,11 +79,7 @@ function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 	local itemId = C_Container.GetContainerItemID(containerId, slotId)
 
 	if not itemId then
-		-- Only hide border if it exists (avoid creating just to hide)
-		if itemButton.cfQualityBorder then
-			itemButton.cfQualityBorder:Hide()
-			self.buttonQualityStateCache[itemButton] = 0
-		end
+		self:HideBorder(itemButton)
 		return
 	end
 
@@ -86,21 +90,13 @@ end
 -- Apply quality border to item button using item link
 function addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 	if not itemLink then
-		-- Only hide border if it exists (avoid creating just to hide)
-		if itemButton.cfQualityBorder then
-			itemButton.cfQualityBorder:Hide()
-			self.buttonQualityStateCache[itemButton] = 0
-		end
+		self:HideBorder(itemButton)
 		return
 	end
 
 	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
 	if not itemQuality then
-		-- Only hide border if it exists (avoid creating just to hide)
-		if itemButton.cfQualityBorder then
-			itemButton.cfQualityBorder:Hide()
-			self.buttonQualityStateCache[itemButton] = 0
-		end
+		self:HideBorder(itemButton)
 		return
 	end
 

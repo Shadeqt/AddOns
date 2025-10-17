@@ -26,7 +26,7 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_TradeSkillUI" then
 		-- Hook profession window when trade skill UI loads
-		addon:RegisterProfessionHooks()
+		addon:InitProfessionsModule()
 
 	elseif event == "INSPECT_READY" then
 		-- Clear old borders immediately to prevent showing stale colors

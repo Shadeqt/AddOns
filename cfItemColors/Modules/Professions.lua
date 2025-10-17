@@ -48,15 +48,10 @@ local function updateProfessionBorders()
 	end
 end
 
--- Register profession window hooks
-function addon:RegisterProfessionHooks()
+function addon:InitProfessionsModule()
+	-- Hook profession window if already loaded
 	if TradeSkillFrame then
 		TradeSkillFrame:HookScript("OnShow", updateProfessionBorders)
 		hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
 	end
-end
-
-function addon:InitProfessionsModule()
-	-- Hook profession window if already loaded
-	self:RegisterProfessionHooks()
 end
