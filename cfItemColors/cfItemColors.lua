@@ -367,6 +367,9 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		hooksecurefunc("QuestInfo_Display", updateQuestRewardBorders)
 		hooksecurefunc("QuestMapFrame_ShowQuestDetails", updateQuestRewardBorders)
 		
+		-- Also hook quest detail updates for quest acceptance dialogs
+		hooksecurefunc("QuestFrame_SetMaterial", updateQuestRewardBorders)
+		
 		-- Register inspect events if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
 			self:RegisterEvent("INSPECT_READY")
