@@ -36,16 +36,29 @@ local function createQualityBorder(itemButton)
 	qualityBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
 	qualityBorder:SetBlendMode("ADD")
 	qualityBorder:SetAlpha(0.7)
-	qualityBorder:SetWidth(72)
-	qualityBorder:SetHeight(73)
+	qualityBorder:SetWidth(68)
+	qualityBorder:SetHeight(68)
 	qualityBorder:SetPoint("CENTER", itemButton)
 	
 	-- Override positioning for quest reward buttons
 	local buttonName = itemButton:GetName() or ""
 	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
+		qualityBorder:SetWidth(72)
+		qualityBorder:SetHeight(72)
 	elseif buttonName and string.find(buttonName, "QuestLogItem") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
+		qualityBorder:SetWidth(72)
+		qualityBorder:SetHeight(72)
+	elseif buttonName and string.find(buttonName, "TradeSkillSkillIcon") then
+		qualityBorder:SetPoint("CENTER", itemButton, "CENTER", 1, 1)
+		qualityBorder:SetWidth(74)
+		qualityBorder:SetHeight(74)
+	elseif buttonName and string.find(buttonName, "TradeSkillReagent%d+$") then
+		-- Position border over the icon area of the reagent frame
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 1)
+		qualityBorder:SetWidth(72)
+		qualityBorder:SetHeight(72)
 	end
 	
 	qualityBorder:Hide()
@@ -100,6 +113,7 @@ local buybackItemButtonCache
 local lootItemButtonCache = {}
 local questRewardButtonCache = {}
 local questLogButtonCache = {}
+local professionButtonCache = {}
 
 -- Initialize bag item button cache for specific container frame
 local function initializeBagItemButtonCache(containerFrameName, containerFrameSize)
@@ -370,14 +384,61 @@ local function updateQuestLogBorders()
 	end
 end
 
+-- Initialize profession button cache
+local function initializeProfessionButtonCache()
+	if #professionButtonCache == 0 then
+		-- Crafted item button
+		professionButtonCache.craftedItem = _G["TradeSkillSkillIcon"]
+		
+		-- Reagent frames (up to 8 reagents) - use the frame, not the texture
+		for reagentIndex = 1, 8 do
+			professionButtonCache[reagentIndex] = _G["TradeSkillReagent"..reagentIndex]
+		end
+	end
+end
 
+-- Update profession window item quality borders
+local function updateProfessionBorders()
+	if not TradeSkillFrame or not TradeSkillFrame:IsVisible() then return end
+	
+	initializeProfessionButtonCache()
+	
+	local selectedRecipe = GetTradeSkillSelectionIndex()
+	if not selectedRecipe or selectedRecipe == 0 then return end
+	
+	-- Color the crafted item
+	local craftedButton = professionButtonCache.craftedItem
+	if craftedButton and craftedButton:IsVisible() then
+		local itemLink = GetTradeSkillItemLink(selectedRecipe)
+		if itemLink then
+			local _, _, itemQuality = GetItemInfo(itemLink)
+			if itemQuality then
+				applyItemQualityBorder(craftedButton, itemQuality, nil)
+			end
+		end
+	end
+	
+	-- Color the reagents
+	local numReagents = GetTradeSkillNumReagents(selectedRecipe)
+	for reagentIndex = 1, numReagents do
+		local reagentButton = professionButtonCache[reagentIndex]
+		if reagentButton and reagentButton:IsVisible() then
+			local itemLink = GetTradeSkillReagentItemLink(selectedRecipe, reagentIndex)
+			if itemLink then
+				local _, _, itemQuality = GetItemInfo(itemLink)
+				if itemQuality then
+					applyItemQualityBorder(reagentButton, itemQuality, nil)
+				end
+			end
+		end
+	end
+end
 
 -- TODO: Future frame support
 -- - Trade Window (player trade items)
 -- - Mail Attachments (incoming/outgoing mail items)  
 -- - Auction House (auction items and bids)
 -- - Guild Bank (guild bank items)
--- - Profession/Tradeskill Windows (reagents and crafted items)
 
 -- Initialize addon event handling and UI hooks
 local addonEventFrame = CreateFrame("Frame")
@@ -412,6 +473,12 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 			QuestLogFrame:HookScript("OnShow", updateQuestLogBorders)
 		end
 		
+		-- Hook profession window updates
+		if TradeSkillFrame then
+			TradeSkillFrame:HookScript("OnShow", updateProfessionBorders)
+			hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
+		end
+		
 		-- Register inspect events if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
 			self:RegisterEvent("INSPECT_READY")
@@ -422,6 +489,13 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		-- Register inspect events when inspect UI loads
 		self:RegisterEvent("INSPECT_READY")
 		self:RegisterEvent("UNIT_INVENTORY_CHANGED")
+		
+	elseif event == "ADDON_LOADED" and addonName == "Blizzard_TradeSkillUI" then
+		-- Hook profession window when trade skill UI loads
+		if TradeSkillFrame then
+			TradeSkillFrame:HookScript("OnShow", updateProfessionBorders)
+			hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
+		end
 		
 	elseif event == "INSPECT_READY" then
 		-- Update inspect frame when inspection is ready (small delay for item links to load)
@@ -439,3 +513,4 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		
 	end
 end)
+
