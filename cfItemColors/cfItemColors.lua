@@ -320,7 +320,8 @@ local function updateQuestRewardBorders()
 				_, _, _, itemQuality = GetQuestItemInfo("choice", itemIndex)
 			else
 				-- This is a fixed reward
-				_, _, _, itemQuality = GetQuestItemInfo("reward", itemIndex - numChoices)
+				local rewardIndex = itemIndex - numChoices
+				_, _, _, itemQuality = GetQuestItemInfo("reward", rewardIndex)
 			end
 			
 			-- Apply border using our unified function
