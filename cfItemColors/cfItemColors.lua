@@ -1,4 +1,4 @@
--- Quality constants for efficient comparison
+-- Item quality constants for efficient comparison
 local QUEST_ITEM_QUALITY = 99
 
 -- Item quality color definitions: {r, g, b}
@@ -15,7 +15,7 @@ local itemQualityColors = {
 }
 
 -- State cache to prevent redundant border updates
-local buttonQualityStates = {}
+local buttonQualityStateCache = {}
 
 -- Get RGB values for item quality color
 local function getItemQualityColor(quality)
@@ -58,11 +58,9 @@ local function applyItemQualityBorder(itemButton, itemQuality, itemType)
 	local stateKey = (itemType == "Quest" and QUEST_ITEM_QUALITY) or itemQuality or 0
 	
 	-- Skip if state hasn't changed
-	if buttonQualityStates[itemButton] == stateKey then
-		return
-	end
+	if buttonQualityStateCache[itemButton] == stateKey then return end
 	
-	buttonQualityStates[itemButton] = stateKey
+	buttonQualityStateCache[itemButton] = stateKey
 	local qualityBorder = createQualityBorder(itemButton)
 	
 	if stateKey == QUEST_ITEM_QUALITY then
@@ -79,15 +77,15 @@ local function applyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
 -- Apply quality border to container item button (bags/bank)
-local function applyContainerItemBorder(itemButton, containerID, slotID)
-	local itemID = C_Container.GetContainerItemID(containerID, slotID)
+local function applyContainerItemBorder(itemButton, containerId, slotId)
+	local itemId = C_Container.GetContainerItemID(containerId, slotId)
 	
-	if not itemID then
+	if not itemId then
 		createQualityBorder(itemButton):Hide()
 		return
 	end
 	
-	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemID)
+	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
 	applyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
@@ -113,15 +111,15 @@ end
 -- Initialize bank item button cache
 local function initializeBankItemButtonCache(bankSlotCount)
 	if #bankItemButtonCache == 0 then
-		for slotID = 1, bankSlotCount do
-			bankItemButtonCache[slotID] = _G["BankFrameItem"..slotID]
+		for slotId = 1, bankSlotCount do
+			bankItemButtonCache[slotId] = _G["BankFrameItem"..slotId]
 		end
 	end
 end
 
 -- Update bag item quality borders for container frame
 local function updateBagItemBorders(containerFrame)
-	local containerID = containerFrame:GetID()
+	local containerId = containerFrame:GetID()
 	local containerFrameName = containerFrame:GetName()
 	
 	initializeBagItemButtonCache(containerFrameName, containerFrame.size)
@@ -129,22 +127,23 @@ local function updateBagItemBorders(containerFrame)
 	for slotIndex = 1, containerFrame.size do
 		local itemButton = bagItemButtonCache[containerFrameName][slotIndex]
 		if itemButton and itemButton:IsVisible() then
-			applyContainerItemBorder(itemButton, containerID, itemButton:GetID())
+			applyContainerItemBorder(itemButton, containerId, itemButton:GetID())
 		end
 	end
 end
 
 -- Update bank item quality borders
 local function updateBankItemBorders()
-	if not BankFrame or not BankFrame:IsVisible() then return end
+	if not BankFrame then return end
+	if not BankFrame:IsVisible() then return end
 	
 	local bankSlotCount = C_Container.GetContainerNumSlots(BANK_CONTAINER)
 	initializeBankItemButtonCache(bankSlotCount)
 	
-	for slotID = 1, bankSlotCount do
-		local itemButton = bankItemButtonCache[slotID]
+	for slotId = 1, bankSlotCount do
+		local itemButton = bankItemButtonCache[slotId]
 		if itemButton and itemButton:IsVisible() then
-			applyContainerItemBorder(itemButton, BANK_CONTAINER, slotID)
+			applyContainerItemBorder(itemButton, BANK_CONTAINER, slotId)
 		end
 	end
 end
@@ -156,12 +155,12 @@ local equipmentSlotNames = {
 	"Trinket0", "Trinket1", "MainHand", "SecondaryHand", "Ranged", "Ammo"
 }
 
--- Cached equipment slot IDs (eliminates repeated GetInventorySlotInfo calls)
-local equipmentSlotIDCache = {}
-local function initializeEquipmentSlotIDCache()
-	if next(equipmentSlotIDCache) == nil then
+-- Cached equipment slot Ids (eliminates repeated GetInventorySlotInfo calls)
+local equipmentSlotIdCache = {}
+local function initializeEquipmentSlotIdCache()
+	if next(equipmentSlotIdCache) == nil then
 		for _, slotName in ipairs(equipmentSlotNames) do
-			equipmentSlotIDCache[slotName] = GetInventorySlotInfo(slotName.."Slot")
+			equipmentSlotIdCache[slotName] = GetInventorySlotInfo(slotName.."Slot")
 		end
 	end
 end
@@ -194,17 +193,18 @@ local function initializeEquipmentSlotButtonCache(framePrefix)
 end
 
 -- Update equipment item quality borders for character or inspect frame
-local function updateEquipmentItemBorders(framePrefix, unitID, parentFrame)
-	if not parentFrame or not parentFrame:IsVisible() then return end
+local function updateEquipmentItemBorders(framePrefix, unitId, parentFrame)
+	if not parentFrame then return end
+	if not parentFrame:IsVisible() then return end
 	
 	initializeEquipmentSlotButtonCache(framePrefix)
-	initializeEquipmentSlotIDCache()
+	initializeEquipmentSlotIdCache()
 	
 	for _, slotName in ipairs(equipmentSlotNames) do
-		local slotID = equipmentSlotIDCache[slotName]
+		local slotId = equipmentSlotIdCache[slotName]
 		local equipmentButton = equipmentSlotButtonCache[framePrefix][slotName]
-		if equipmentButton and equipmentButton:IsVisible() and slotID then
-			local itemLink = GetInventoryItemLink(unitID, slotID)
+		if equipmentButton and equipmentButton:IsVisible() and slotId then
+			local itemLink = GetInventoryItemLink(unitId, slotId)
 			applyItemQualityBorderByLink(equipmentButton, itemLink)
 		end
 	end
@@ -232,7 +232,8 @@ end
 
 -- Update merchant item quality borders
 local function updateMerchantItemBorders()
-	if not MerchantFrame or not MerchantFrame:IsVisible() then return end
+	if not MerchantFrame then return end
+	if not MerchantFrame:IsVisible() then return end
 	
 	initializeMerchantItemButtonCache()
 	
@@ -273,7 +274,8 @@ end
 
 -- Update loot item quality borders
 local function updateLootItemBorders()
-	if not LootFrame or not LootFrame:IsVisible() then return end
+	if not LootFrame then return end
+	if not LootFrame:IsVisible() then return end
 	
 	initializeLootItemButtonCache()
 	
@@ -299,7 +301,8 @@ end
 
 -- Update quest reward item quality borders
 local function updateQuestRewardBorders()
-	if not QuestFrame or not QuestFrame:IsVisible() then return end
+	if not QuestFrame then return end
+	if not QuestFrame:IsVisible() then return end
 	
 	initializeQuestRewardButtonCache()
 	
