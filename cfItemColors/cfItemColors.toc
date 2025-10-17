@@ -1,8 +1,11 @@
 ## Interface: 11507
 ## Title: cfItemColors
-## Notes: Simple addon to color item borders based on quality
-## Author: YourName
-## Version: 1.0
+## Notes: Colors item borders based on quality for bags, bank, character, merchant, loot, and quest frames
+## Author: Cowfoot
+## Version: 1.0.0
 ## SavedVariables: cfItemColorsDB
+## DefaultState: enabled
+## X-Category: Inventory & Items
+## X-Website: https://github.com/cowfoot/cfItemColors
 
 cfItemColors.lua
