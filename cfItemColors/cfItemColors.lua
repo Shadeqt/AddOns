@@ -36,29 +36,29 @@ local function createQualityBorder(itemButton)
 	qualityBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
 	qualityBorder:SetBlendMode("ADD")
 	qualityBorder:SetAlpha(0.7)
-	qualityBorder:SetWidth(68)
-	qualityBorder:SetHeight(68)
+	qualityBorder:SetWidth(70)
+	qualityBorder:SetHeight(72)
 	qualityBorder:SetPoint("CENTER", itemButton)
 	
 	-- Override positioning for quest reward buttons
 	local buttonName = itemButton:GetName() or ""
 	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
-		qualityBorder:SetWidth(72)
-		qualityBorder:SetHeight(72)
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
+		-- qualityBorder:SetWidth(72)
+		-- qualityBorder:SetHeight(72)
 	elseif buttonName and string.find(buttonName, "QuestLogItem") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
-		qualityBorder:SetWidth(72)
-		qualityBorder:SetHeight(72)
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15,2)
+		-- qualityBorder:SetWidth(72)
+		-- qualityBorder:SetHeight(72)
 	elseif buttonName and string.find(buttonName, "TradeSkillSkillIcon") then
-		qualityBorder:SetPoint("CENTER", itemButton, "CENTER", 1, 1)
-		qualityBorder:SetWidth(74)
-		qualityBorder:SetHeight(74)
+		qualityBorder:SetPoint("CENTER", itemButton)
+		-- qualityBorder:SetWidth(74)
+		-- qualityBorder:SetHeight(74)
 	elseif buttonName and string.find(buttonName, "TradeSkillReagent%d+$") then
 		-- Position border over the icon area of the reagent frame
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 1)
-		qualityBorder:SetWidth(72)
-		qualityBorder:SetHeight(72)
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
+		-- qualityBorder:SetWidth(72)
+		-- qualityBorder:SetHeight(72)
 	end
 	
 	qualityBorder:Hide()
@@ -232,8 +232,27 @@ local function updateCharacterEquipmentBorders()
 	updateEquipmentItemBorders("Character", "player", CharacterFrame)
 end
 
+-- Clear all inspect equipment borders (called when starting new inspect)
+local function clearInspectEquipmentBorders()
+	-- Only clear if cache exists (no need to initialize just to clear)
+	if not equipmentSlotButtonCache["Inspect"] then return end
+
+	for _, slotName in ipairs(equipmentSlotNames) do
+		local equipmentButton = equipmentSlotButtonCache["Inspect"][slotName]
+		if equipmentButton and equipmentButton.cfQualityBorder then
+			equipmentButton.cfQualityBorder:Hide()
+			buttonQualityStateCache[equipmentButton] = nil
+		end
+	end
+end
+
 -- Update inspect equipment item quality borders
-local function updateInspectEquipmentBorders()
+local function updateInspectEquipmentBorders(expectedTargetGUID)
+	-- Verify target hasn't changed (prevent stale timer updates)
+	if expectedTargetGUID and UnitGUID("target") ~= expectedTargetGUID then
+		return
+	end
+
 	updateEquipmentItemBorders("Inspect", "target", InspectFrame)
 end
 
@@ -479,16 +498,18 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 			hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
 		end
 		
-		-- Register inspect events if inspect UI is already loaded
+		-- Register inspect events and hook if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
 			self:RegisterEvent("INSPECT_READY")
 			self:RegisterEvent("UNIT_INVENTORY_CHANGED")
+			hooksecurefunc("InspectPaperDollItemSlotButton_Update", updateInspectEquipmentBorders)
 		end
-		
+
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_InspectUI" then
-		-- Register inspect events when inspect UI loads
+		-- Register inspect events and hook when inspect UI loads
 		self:RegisterEvent("INSPECT_READY")
 		self:RegisterEvent("UNIT_INVENTORY_CHANGED")
+		hooksecurefunc("InspectPaperDollItemSlotButton_Update", updateInspectEquipmentBorders)
 		
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_TradeSkillUI" then
 		-- Hook profession window when trade skill UI loads
@@ -498,19 +519,25 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		end
 		
 	elseif event == "INSPECT_READY" then
-		-- Update inspect frame when inspection is ready (small delay for item links to load)
-		C_Timer.After(0.01, updateInspectEquipmentBorders)
-		
+		-- Clear old borders immediately to prevent showing stale colors
+		clearInspectEquipmentBorders()
+
+		-- Update inspect frame when inspection is ready (delay for item links to load from server)
+		local targetGUID = UnitGUID("target")
+		C_Timer.After(0.05, function()
+			updateInspectEquipmentBorders(targetGUID)
+		end)
+
 	elseif event == "UNIT_INVENTORY_CHANGED" and addonName == "target" then
 		-- Update inspect frame when target's inventory changes
 		if InspectFrame and InspectFrame:IsShown() then
 			updateInspectEquipmentBorders()
 		end
-		
+
 	elseif event == "QUEST_LOG_UPDATE" then
 		-- Update quest log borders when quest log changes
 		updateQuestLogBorders()
-		
+
 	end
 end)
 
