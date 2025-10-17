@@ -10,9 +10,6 @@ local buttonColorStates = {
 	[BUTTON_STATE_OUT_OF_RANGE] = {1.00, 0.30, 0.10, 1.00, true}, -- Out of range (red)
 }
 
--- State cache to prevent redundant color updates
-local buttonColorStateCache = {}
-
 -- Button caches for performance optimization
 local petActionButtonCache = {}
 
@@ -36,12 +33,8 @@ local function determineButtonColorState(isOutOfMana, isOutOfRange)
 	end
 end
 
--- Apply color state to button icon if state has changed
+-- Apply color state to button icon
 local function applyButtonColorState(buttonIcon, stateKey)
-	-- Skip if state hasn't changed
-	if buttonColorStateCache[buttonIcon] == stateKey then return end
-	
-	buttonColorStateCache[buttonIcon] = stateKey
 	local r, g, b, a, isDesaturated = getButtonColorState(stateKey)
 	buttonIcon:SetVertexColor(r, g, b, a)
 	buttonIcon:SetDesaturated(isDesaturated)
