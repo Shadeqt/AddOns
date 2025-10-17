@@ -37,13 +37,13 @@ local function createQualityBorder(itemButton)
 	qualityBorder:SetBlendMode("ADD")
 	qualityBorder:SetAlpha(0.7)
 	qualityBorder:SetWidth(72)
-	qualityBorder:SetHeight(72)
+	qualityBorder:SetHeight(73)
 	qualityBorder:SetPoint("CENTER", itemButton)
 	
 	-- Override positioning for quest reward buttons
 	local buttonName = itemButton:GetName() or ""
-	if string.find(buttonName, "QuestInfoRewardsFrame") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 1)
+	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
 	end
 	
 	qualityBorder:Hide()
@@ -292,7 +292,7 @@ end
 -- Initialize quest reward button cache
 local function initializeQuestRewardButtonCache()
 	if #questRewardButtonCache == 0 then
-		-- Based on debug: buttons are in QuestInfoRewardsFrame
+		-- Quest reward buttons use the pattern QuestInfoRewardsFrameQuestInfoItem1, etc.
 		for slotIndex = 1, 6 do
 			questRewardButtonCache[slotIndex] = _G["QuestInfoRewardsFrameQuestInfoItem"..slotIndex]
 		end
