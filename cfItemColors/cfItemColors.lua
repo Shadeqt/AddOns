@@ -44,6 +44,8 @@ local function createQualityBorder(itemButton)
 	local buttonName = itemButton:GetName() or ""
 	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
+	elseif buttonName and string.find(buttonName, "QuestLogItem") then
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -16, 2)
 	end
 	
 	qualityBorder:Hide()
@@ -97,6 +99,7 @@ local merchantItemButtonCache = {}
 local buybackItemButtonCache
 local lootItemButtonCache = {}
 local questRewardButtonCache = {}
+local questLogButtonCache = {}
 
 -- Initialize bag item button cache for specific container frame
 local function initializeBagItemButtonCache(containerFrameName, containerFrameSize)
@@ -330,10 +333,46 @@ local function updateQuestRewardBorders()
 	end
 end
 
+-- Initialize quest log button cache
+local function initializeQuestLogButtonCache()
+	if #questLogButtonCache == 0 then
+		for slotIndex = 1, 6 do
+			questLogButtonCache[slotIndex] = _G["QuestLogItem"..slotIndex]
+		end
+	end
+end
+
+-- Update quest log item quality borders
+local function updateQuestLogBorders()
+	if not QuestLogFrame or not QuestLogFrame:IsVisible() then return end
+	
+	initializeQuestLogButtonCache()
+	
+	local selectedQuest = GetQuestLogSelection()
+	if not selectedQuest or selectedQuest == 0 then return end
+	
+	local numChoices = GetNumQuestLogChoices()
+	local numRewards = GetNumQuestLogRewards()
+	local totalItems = numChoices + numRewards
+	
+	for itemIndex = 1, totalItems do
+		local itemButton = questLogButtonCache[itemIndex]
+		if itemButton and itemButton:IsVisible() then
+			local itemQuality
+			if itemIndex <= numChoices then
+				_, _, _, itemQuality = GetQuestLogChoiceInfo(itemIndex)
+			else
+				_, _, _, itemQuality = GetQuestLogRewardInfo(itemIndex - numChoices)
+			end
+			
+			applyItemQualityBorder(itemButton, itemQuality, nil)
+		end
+	end
+end
+
 
 
 -- TODO: Future frame support
--- - Quest Log (quest reward items) - hooks not working in Classic
 -- - Trade Window (player trade items)
 -- - Mail Attachments (incoming/outgoing mail items)  
 -- - Auction House (auction items and bids)
@@ -365,10 +404,13 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		
 		-- Hook quest frame updates
 		hooksecurefunc("QuestInfo_Display", updateQuestRewardBorders)
-		hooksecurefunc("QuestMapFrame_ShowQuestDetails", updateQuestRewardBorders)
-		
-		-- Also hook quest detail updates for quest acceptance dialogs
 		hooksecurefunc("QuestFrame_SetMaterial", updateQuestRewardBorders)
+		
+		-- Hook quest log updates
+		self:RegisterEvent("QUEST_LOG_UPDATE")
+		if QuestLogFrame then
+			QuestLogFrame:HookScript("OnShow", updateQuestLogBorders)
+		end
 		
 		-- Register inspect events if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
@@ -390,6 +432,10 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		if InspectFrame and InspectFrame:IsShown() then
 			updateInspectEquipmentBorders()
 		end
+		
+	elseif event == "QUEST_LOG_UPDATE" then
+		-- Update quest log borders when quest log changes
+		updateQuestLogBorders()
 		
 	end
 end)
