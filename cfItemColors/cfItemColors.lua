@@ -1,5 +1,27 @@
+-- ============================
+-- CONSTANTS
+-- ============================
+
 -- Item quality constants for efficient comparison
 local QUEST_ITEM_QUALITY = 99
+
+-- UI frame constants
+local MAX_MERCHANT_SLOTS = 12
+local MAX_QUEST_REWARD_SLOTS = 6
+local MAX_PROFESSION_REAGENTS = 8
+
+-- ============================
+-- UTILITY FUNCTIONS
+-- ============================
+
+-- Check if frame is valid and visible
+local function isFrameVisible(frame)
+	return frame and frame:IsVisible()
+end
+
+-- ============================
+-- COLOR DEFINITIONS
+-- ============================
 
 -- Item quality color definitions: {r, g, b}
 local itemQualityColors = {
@@ -14,8 +36,16 @@ local itemQualityColors = {
 	[QUEST_ITEM_QUALITY] = {1.00, 1.00, 0.00}, -- Quest items (yellow)
 }
 
+-- ============================
+-- STATE MANAGEMENT
+-- ============================
+
 -- State cache to prevent redundant border updates
 local buttonQualityStateCache = {}
+
+-- ============================
+-- BORDER CREATION & APPLICATION
+-- ============================
 
 -- Get RGB values for item quality color
 local function getItemQualityColor(quality)
@@ -40,25 +70,16 @@ local function createQualityBorder(itemButton)
 	qualityBorder:SetHeight(72)
 	qualityBorder:SetPoint("CENTER", itemButton)
 	
-	-- Override positioning for quest reward buttons
+	-- Override positioning for specific button types (uses default 70x72 size)
 	local buttonName = itemButton:GetName() or ""
 	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
-		-- qualityBorder:SetWidth(72)
-		-- qualityBorder:SetHeight(72)
 	elseif buttonName and string.find(buttonName, "QuestLogItem") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15,2)
-		-- qualityBorder:SetWidth(72)
-		-- qualityBorder:SetHeight(72)
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
 	elseif buttonName and string.find(buttonName, "TradeSkillSkillIcon") then
 		qualityBorder:SetPoint("CENTER", itemButton)
-		-- qualityBorder:SetWidth(74)
-		-- qualityBorder:SetHeight(74)
 	elseif buttonName and string.find(buttonName, "TradeSkillReagent%d+$") then
-		-- Position border over the icon area of the reagent frame
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
-		-- qualityBorder:SetWidth(72)
-		-- qualityBorder:SetHeight(72)
 	end
 	
 	qualityBorder:Hide()
@@ -77,12 +98,9 @@ local function applyItemQualityBorder(itemButton, itemQuality, itemType)
 	
 	buttonQualityStateCache[itemButton] = stateKey
 	local qualityBorder = createQualityBorder(itemButton)
-	
-	if stateKey == QUEST_ITEM_QUALITY then
-		local r, g, b = getItemQualityColor(QUEST_ITEM_QUALITY)
-		qualityBorder:SetVertexColor(r, g, b)
-		qualityBorder:Show()
-	elseif stateKey >= 2 then
+
+	-- Show border for quest items or uncommon+ quality (>= 2)
+	if stateKey == QUEST_ITEM_QUALITY or stateKey >= 2 then
 		local r, g, b = getItemQualityColor(stateKey)
 		qualityBorder:SetVertexColor(r, g, b)
 		qualityBorder:Show()
@@ -94,22 +112,30 @@ end
 -- Apply quality border to container item button (bags/bank)
 local function applyContainerItemBorder(itemButton, containerId, slotId)
 	local itemId = C_Container.GetContainerItemID(containerId, slotId)
-	
+
 	if not itemId then
-		createQualityBorder(itemButton):Hide()
+		-- Only hide border if it exists (avoid creating just to hide)
+		if itemButton.cfQualityBorder then
+			itemButton.cfQualityBorder:Hide()
+			buttonQualityStateCache[itemButton] = 0
+		end
 		return
 	end
-	
+
 	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
 	applyItemQualityBorder(itemButton, itemQuality, itemType)
 end
+
+-- ============================
+-- BUTTON CACHE MANAGEMENT
+-- ============================
 
 -- Button caches for performance optimization
 local bagItemButtonCache = {}
 local bankItemButtonCache = {}
 local equipmentSlotButtonCache = {}
 local merchantItemButtonCache = {}
-local buybackItemButtonCache
+local buybackItemButtonCache = nil  -- Initialized in initializeMerchantItemButtonCache
 local lootItemButtonCache = {}
 local questRewardButtonCache = {}
 local questLogButtonCache = {}
@@ -149,10 +175,13 @@ local function updateBagItemBorders(containerFrame)
 	end
 end
 
+-- ============================
+-- UPDATE FUNCTIONS
+-- ============================
+
 -- Update bank item quality borders
 local function updateBankItemBorders()
-	if not BankFrame then return end
-	if not BankFrame:IsVisible() then return end
+	if not isFrameVisible(BankFrame) then return end
 	
 	local bankSlotCount = C_Container.GetContainerNumSlots(BANK_CONTAINER)
 	initializeBankItemButtonCache(bankSlotCount)
@@ -185,16 +214,24 @@ end
 -- Apply quality border to item button using item link
 local function applyItemQualityBorderByLink(itemButton, itemLink)
 	if not itemLink then
-		createQualityBorder(itemButton):Hide()
+		-- Only hide border if it exists (avoid creating just to hide)
+		if itemButton.cfQualityBorder then
+			itemButton.cfQualityBorder:Hide()
+			buttonQualityStateCache[itemButton] = 0
+		end
 		return
 	end
-	
+
 	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
 	if not itemQuality then
-		createQualityBorder(itemButton):Hide()
+		-- Only hide border if it exists (avoid creating just to hide)
+		if itemButton.cfQualityBorder then
+			itemButton.cfQualityBorder:Hide()
+			buttonQualityStateCache[itemButton] = 0
+		end
 		return
 	end
-	
+
 	applyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
@@ -211,8 +248,7 @@ end
 
 -- Update equipment item quality borders for character or inspect frame
 local function updateEquipmentItemBorders(framePrefix, unitId, parentFrame)
-	if not parentFrame then return end
-	if not parentFrame:IsVisible() then return end
+	if not isFrameVisible(parentFrame) then return end
 	
 	initializeEquipmentSlotButtonCache(framePrefix)
 	initializeEquipmentSlotIdCache()
@@ -259,7 +295,7 @@ end
 -- Initialize merchant item button cache
 local function initializeMerchantItemButtonCache()
 	if #merchantItemButtonCache == 0 then
-		for slotIndex = 1, 12 do
+		for slotIndex = 1, MAX_MERCHANT_SLOTS do
 			merchantItemButtonCache[slotIndex] = _G["MerchantItem"..slotIndex.."ItemButton"]
 		end
 		buybackItemButtonCache = _G["MerchantBuyBackItemItemButton"]
@@ -268,15 +304,14 @@ end
 
 -- Update merchant item quality borders
 local function updateMerchantItemBorders()
-	if not MerchantFrame then return end
-	if not MerchantFrame:IsVisible() then return end
+	if not isFrameVisible(MerchantFrame) then return end
 	
 	initializeMerchantItemButtonCache()
 	
 	local isOnBuybackTab = MerchantFrame.selectedTab == 2
 	
-	-- Update main merchant item slots (1-12)
-	for slotIndex = 1, 12 do
+	-- Update main merchant item slots
+	for slotIndex = 1, MAX_MERCHANT_SLOTS do
 		local merchantButton = merchantItemButtonCache[slotIndex]
 		if merchantButton and merchantButton:IsVisible() then
 			local itemLink = isOnBuybackTab and GetBuybackItemLink(slotIndex) or GetMerchantItemLink(slotIndex)
@@ -286,15 +321,9 @@ local function updateMerchantItemBorders()
 	
 	-- Update buyback slot (only visible on merchant tab)
 	if not isOnBuybackTab and buybackItemButtonCache and buybackItemButtonCache:IsVisible() then
-		-- Find most recent buyback item efficiently
-		local mostRecentBuybackLink
-		for slotIndex = 12, 1, -1 do  -- Search backwards for efficiency
-			local buybackLink = GetBuybackItemLink(slotIndex)
-			if buybackLink then
-				mostRecentBuybackLink = buybackLink
-				break
-			end
-		end
+		-- Get most recent buyback item (highest valid index)
+		local numBuyback = GetNumBuybackItems()
+		local mostRecentBuybackLink = numBuyback > 0 and GetBuybackItemLink(numBuyback) or nil
 		applyItemQualityBorderByLink(buybackItemButtonCache, mostRecentBuybackLink)
 	end
 end
@@ -310,8 +339,7 @@ end
 
 -- Update loot item quality borders
 local function updateLootItemBorders()
-	if not LootFrame then return end
-	if not LootFrame:IsVisible() then return end
+	if not isFrameVisible(LootFrame) then return end
 	
 	initializeLootItemButtonCache()
 	
@@ -325,11 +353,35 @@ local function updateLootItemBorders()
 	end
 end
 
+-- Get item quality for quest reward/choice at given index
+local function getQuestItemQuality(itemIndex, numChoices, isQuestLog)
+	if itemIndex <= numChoices then
+		-- This is a choice reward
+		if isQuestLog then
+			local _, _, _, quality = GetQuestLogChoiceInfo(itemIndex)
+			return quality
+		else
+			local _, _, _, quality = GetQuestItemInfo("choice", itemIndex)
+			return quality
+		end
+	else
+		-- This is a fixed reward
+		local rewardIndex = itemIndex - numChoices
+		if isQuestLog then
+			local _, _, _, quality = GetQuestLogRewardInfo(rewardIndex)
+			return quality
+		else
+			local _, _, _, quality = GetQuestItemInfo("reward", rewardIndex)
+			return quality
+		end
+	end
+end
+
 -- Initialize quest reward button cache
 local function initializeQuestRewardButtonCache()
 	if #questRewardButtonCache == 0 then
 		-- Quest reward buttons use the pattern QuestInfoRewardsFrameQuestInfoItem1, etc.
-		for slotIndex = 1, 6 do
+		for slotIndex = 1, MAX_QUEST_REWARD_SLOTS do
 			questRewardButtonCache[slotIndex] = _G["QuestInfoRewardsFrameQuestInfoItem"..slotIndex]
 		end
 	end
@@ -337,8 +389,7 @@ end
 
 -- Update quest reward item quality borders
 local function updateQuestRewardBorders()
-	if not QuestFrame then return end
-	if not QuestFrame:IsVisible() then return end
+	if not isFrameVisible(QuestFrame) then return end
 
 	initializeQuestRewardButtonCache()
 
@@ -350,17 +401,7 @@ local function updateQuestRewardBorders()
 	for itemIndex = 1, totalItems do
 		local rewardButton = questRewardButtonCache[itemIndex]
 		if rewardButton and rewardButton:IsVisible() then
-			local itemQuality
-			if itemIndex <= numChoices then
-				-- This is a choice reward
-				_, _, _, itemQuality = GetQuestItemInfo("choice", itemIndex)
-			else
-				-- This is a fixed reward
-				local rewardIndex = itemIndex - numChoices
-				_, _, _, itemQuality = GetQuestItemInfo("reward", rewardIndex)
-			end
-
-			-- Apply border using our unified function
+			local itemQuality = getQuestItemQuality(itemIndex, numChoices, false)
 			applyItemQualityBorder(rewardButton, itemQuality, nil)
 		end
 	end
@@ -369,7 +410,7 @@ end
 -- Initialize quest log button cache
 local function initializeQuestLogButtonCache()
 	if #questLogButtonCache == 0 then
-		for slotIndex = 1, 6 do
+		for slotIndex = 1, MAX_QUEST_REWARD_SLOTS do
 			questLogButtonCache[slotIndex] = _G["QuestLogItem"..slotIndex]
 		end
 	end
@@ -377,7 +418,7 @@ end
 
 -- Update quest log item quality borders
 local function updateQuestLogBorders()
-	if not QuestLogFrame or not QuestLogFrame:IsVisible() then return end
+	if not isFrameVisible(QuestLogFrame) then return end
 	
 	initializeQuestLogButtonCache()
 	
@@ -391,13 +432,7 @@ local function updateQuestLogBorders()
 	for itemIndex = 1, totalItems do
 		local itemButton = questLogButtonCache[itemIndex]
 		if itemButton and itemButton:IsVisible() then
-			local itemQuality
-			if itemIndex <= numChoices then
-				_, _, _, itemQuality = GetQuestLogChoiceInfo(itemIndex)
-			else
-				_, _, _, itemQuality = GetQuestLogRewardInfo(itemIndex - numChoices)
-			end
-			
+			local itemQuality = getQuestItemQuality(itemIndex, numChoices, true)
 			applyItemQualityBorder(itemButton, itemQuality, nil)
 		end
 	end
@@ -408,9 +443,9 @@ local function initializeProfessionButtonCache()
 	if #professionButtonCache == 0 then
 		-- Crafted item button
 		professionButtonCache.craftedItem = _G["TradeSkillSkillIcon"]
-		
-		-- Reagent frames (up to 8 reagents) - use the frame, not the texture
-		for reagentIndex = 1, 8 do
+
+		-- Reagent frames - use the frame, not the texture
+		for reagentIndex = 1, MAX_PROFESSION_REAGENTS do
 			professionButtonCache[reagentIndex] = _G["TradeSkillReagent"..reagentIndex]
 		end
 	end
@@ -418,7 +453,7 @@ end
 
 -- Update profession window item quality borders
 local function updateProfessionBorders()
-	if not TradeSkillFrame or not TradeSkillFrame:IsVisible() then return end
+	if not isFrameVisible(TradeSkillFrame) then return end
 	
 	initializeProfessionButtonCache()
 	
@@ -429,35 +464,48 @@ local function updateProfessionBorders()
 	local craftedButton = professionButtonCache.craftedItem
 	if craftedButton and craftedButton:IsVisible() then
 		local itemLink = GetTradeSkillItemLink(selectedRecipe)
-		if itemLink then
-			local _, _, itemQuality = GetItemInfo(itemLink)
-			if itemQuality then
-				applyItemQualityBorder(craftedButton, itemQuality, nil)
-			end
-		end
+		applyItemQualityBorderByLink(craftedButton, itemLink)
 	end
-	
+
 	-- Color the reagents
 	local numReagents = GetTradeSkillNumReagents(selectedRecipe)
 	for reagentIndex = 1, numReagents do
 		local reagentButton = professionButtonCache[reagentIndex]
 		if reagentButton and reagentButton:IsVisible() then
 			local itemLink = GetTradeSkillReagentItemLink(selectedRecipe, reagentIndex)
-			if itemLink then
-				local _, _, itemQuality = GetItemInfo(itemLink)
-				if itemQuality then
-					applyItemQualityBorder(reagentButton, itemQuality, nil)
-				end
-			end
+			applyItemQualityBorderByLink(reagentButton, itemLink)
 		end
 	end
 end
 
 -- TODO: Future frame support
 -- - Trade Window (player trade items)
--- - Mail Attachments (incoming/outgoing mail items)  
+-- - Mail Attachments (incoming/outgoing mail items)
 -- - Auction House (auction items and bids)
 -- - Guild Bank (guild bank items)
+
+-- ============================
+-- HOOK REGISTRATION HELPERS
+-- ============================
+
+-- Register inspect frame event handlers and hooks
+local function registerInspectHooks(eventFrame)
+	eventFrame:RegisterEvent("INSPECT_READY")
+	eventFrame:RegisterEvent("UNIT_INVENTORY_CHANGED")
+	hooksecurefunc("InspectPaperDollItemSlotButton_Update", updateInspectEquipmentBorders)
+end
+
+-- Register profession window hooks
+local function registerProfessionHooks()
+	if TradeSkillFrame then
+		TradeSkillFrame:HookScript("OnShow", updateProfessionBorders)
+		hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
+	end
+end
+
+-- ============================
+-- EVENT HANDLING & HOOKS
+-- ============================
 
 -- Initialize addon event handling and UI hooks
 local addonEventFrame = CreateFrame("Frame")
@@ -493,30 +541,20 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		end
 		
 		-- Hook profession window updates
-		if TradeSkillFrame then
-			TradeSkillFrame:HookScript("OnShow", updateProfessionBorders)
-			hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
-		end
-		
+		registerProfessionHooks()
+
 		-- Register inspect events and hook if inspect UI is already loaded
 		if IsAddOnLoaded("Blizzard_InspectUI") then
-			self:RegisterEvent("INSPECT_READY")
-			self:RegisterEvent("UNIT_INVENTORY_CHANGED")
-			hooksecurefunc("InspectPaperDollItemSlotButton_Update", updateInspectEquipmentBorders)
+			registerInspectHooks(self)
 		end
 
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_InspectUI" then
 		-- Register inspect events and hook when inspect UI loads
-		self:RegisterEvent("INSPECT_READY")
-		self:RegisterEvent("UNIT_INVENTORY_CHANGED")
-		hooksecurefunc("InspectPaperDollItemSlotButton_Update", updateInspectEquipmentBorders)
-		
+		registerInspectHooks(self)
+
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_TradeSkillUI" then
 		-- Hook profession window when trade skill UI loads
-		if TradeSkillFrame then
-			TradeSkillFrame:HookScript("OnShow", updateProfessionBorders)
-			hooksecurefunc("TradeSkillFrame_SetSelection", updateProfessionBorders)
-		end
+		registerProfessionHooks()
 		
 	elseif event == "INSPECT_READY" then
 		-- Clear old borders immediately to prevent showing stale colors
@@ -530,7 +568,7 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 
 	elseif event == "UNIT_INVENTORY_CHANGED" and addonName == "target" then
 		-- Update inspect frame when target's inventory changes
-		if InspectFrame and InspectFrame:IsShown() then
+		if isFrameVisible(InspectFrame) then
 			updateInspectEquipmentBorders()
 		end
 
