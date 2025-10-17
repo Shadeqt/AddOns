@@ -5,8 +5,15 @@ local buttonColors = {
 	outOfRange = { 1, 0.3, 0.1, 1, true },   -- Red, desaturated
 }
 
--- Apply color to button icon (always applies to override WoW's interference)
+-- State cache to avoid redundant color applications
+local buttonStates = {}
+
+-- Apply color to button icon (only if state changed)
 local function applyButtonColor(buttonIcon, colorState)
+	-- Skip if state hasn't changed
+	if buttonStates[buttonIcon] == colorState then return end
+	
+	buttonStates[buttonIcon] = colorState
 	local colorSettings = buttonColors[colorState]
 	buttonIcon:SetVertexColor(colorSettings[1], colorSettings[2], colorSettings[3], colorSettings[4])
 	buttonIcon:SetDesaturated(colorSettings[5])
