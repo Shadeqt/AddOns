@@ -53,6 +53,18 @@ addon.pendingItemUpdates = {}
 addon.pendingInspectTimer = nil
 
 -- ============================
+-- DEBUG COMMANDS
+-- ============================
+
+-- Clear button quality state cache to force border refresh
+SLASH_CFITEMCOLORS1 = "/cfc"
+SlashCmdList["CFITEMCOLORS"] = function()
+	cfItemColors.buttonQualityStateCache = {}
+	setmetatable(cfItemColors.buttonQualityStateCache, {__mode = "k"})
+	print("cfItemColors: Border cache cleared")
+end
+
+-- ============================
 -- UTILITY FUNCTIONS
 -- ============================
 
@@ -83,13 +95,13 @@ function addon:OnGetItemInfoReceived(itemId)
 	local pending = self.pendingItemUpdates[itemId]
 	if not pending then return end
 
-	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
+	local itemName, _, itemQuality, _, _, itemType, _, _, _, _, _, itemClassID = GetItemInfo(itemId)
 
 	if itemName then
 		for _, updateInfo in ipairs(pending) do
 			-- Clear cached state before applying to force update
 			self.buttonQualityStateCache[updateInfo.button] = nil
-			self:ApplyItemQualityBorder(updateInfo.button, itemQuality, itemType)
+			self:ApplyItemQualityBorder(updateInfo.button, itemQuality, itemType, itemClassID)
 		end
 	end
 
@@ -162,6 +174,44 @@ function addon:CreateQualityBorder(itemButton)
 end
 
 -- ============================
+-- QUEST ITEM DETECTION
+-- ============================
+
+-- Create hidden tooltip for scanning
+local scanTooltip = CreateFrame("GameTooltip", "cfItemColorsScanTooltip", nil, "GameTooltipTemplate")
+scanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+
+-- Cache for quest item detection (itemId -> boolean)
+local questItemCache = {}
+
+-- Check if item has "Quest Item" in tooltip
+-- ITEM_BIND_QUEST is WoW's localized string for "Quest Item" text
+local function isQuestItemByTooltip(containerId, slotId, itemId)
+	-- Check cache first (tooltip scan is expensive)
+	if questItemCache[itemId] ~= nil then
+		return questItemCache[itemId]
+	end
+
+	-- Scan tooltip for "Quest Item" text
+	scanTooltip:ClearLines()
+	scanTooltip:SetBagItem(containerId, slotId)
+
+	for i = 1, scanTooltip:NumLines() do
+		local line = _G["cfItemColorsScanTooltipTextLeft"..i]
+		if line then
+			local text = line:GetText()
+			if text and text == ITEM_BIND_QUEST then
+				questItemCache[itemId] = true
+				return true
+			end
+		end
+	end
+
+	questItemCache[itemId] = false
+	return false
+end
+
+-- ============================
 -- BORDER APPLICATION
 -- ============================
 
@@ -184,8 +234,9 @@ function addon:ClearButtonCacheState(buttonCache, count)
 end
 
 -- Apply quality border to item button
-function addon:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
-	local stateKey = (itemType == "Quest" and self.QUEST_ITEM_QUALITY) or itemQuality or 0
+function addon:ApplyItemQualityBorder(itemButton, itemQuality, itemType, itemClassID)
+	local isQuest = (itemType == "Quest") or (itemClassID == 12)
+	local stateKey = (isQuest and self.QUEST_ITEM_QUALITY) or itemQuality or 0
 
 	if self.buttonQualityStateCache[itemButton] == stateKey then return end
 
@@ -210,7 +261,7 @@ function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 		return
 	end
 
-	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
+	local itemName, _, itemQuality, _, _, itemType, _, _, _, _, _, itemClassID = GetItemInfo(itemId)
 
 	if not itemName then
 		self.pendingItemUpdates[itemId] = self.pendingItemUpdates[itemId] or {}
@@ -221,7 +272,20 @@ function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 		return
 	end
 
-	self:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
+	-- Check if item is a quest item
+	-- First check the standard ways (fast), then fallback to tooltip scan (slower)
+	local isQuestItem = (itemType == "Quest") or (itemClassID == 12)
+	if not isQuestItem then
+		isQuestItem = isQuestItemByTooltip(containerId, slotId, itemId)
+	end
+
+	-- Override itemType and itemClassID if quest item detected
+	if isQuestItem and itemType ~= "Quest" then
+		itemType = "Quest"
+		itemClassID = 12
+	end
+
+	self:ApplyItemQualityBorder(itemButton, itemQuality, itemType, itemClassID)
 end
 
 -- Apply border using item link
@@ -231,7 +295,7 @@ function addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 		return
 	end
 
-	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
+	local itemName, _, itemQuality, _, _, itemType, _, _, _, _, _, itemClassID = GetItemInfo(itemLink)
 
 	if not itemName then
 		local itemId = tonumber(itemLink:match("item:(%d+)"))
@@ -245,5 +309,5 @@ function addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 		return
 	end
 
-	self:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
+	self:ApplyItemQualityBorder(itemButton, itemQuality, itemType, itemClassID)
 end
