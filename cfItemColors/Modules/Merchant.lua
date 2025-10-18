@@ -11,24 +11,18 @@ local buybackItemButtonCache = nil
 
 -- Initialize merchant item button cache
 local function initializeMerchantItemButtonCache()
-	if #merchantItemButtonCache == 0 then
-		for slotIndex = 1, addon.MAX_MERCHANT_SLOTS do
-			merchantItemButtonCache[slotIndex] = _G["MerchantItem"..slotIndex.."ItemButton"]
-		end
+	addon:BuildButtonCache(merchantItemButtonCache, "MerchantItem%dItemButton", addon.MAX_MERCHANT_SLOTS)
+	if not buybackItemButtonCache then
 		buybackItemButtonCache = _G["MerchantBuyBackItemItemButton"]
 	end
 end
 
--- Update merchant item quality borders
 local function updateMerchantItemBorders()
-	if not addon:IsFrameVisible(MerchantFrame) then return end
-
 	initializeMerchantItemButtonCache()
 
 	local isOnBuybackTab = MerchantFrame.selectedTab == 2
-
-	-- Update main merchant item slots
-	for slotIndex = 1, addon.MAX_MERCHANT_SLOTS do
+	local numMerchantItems = GetMerchantNumItems()
+	for slotIndex = 1, numMerchantItems do
 		local merchantButton = merchantItemButtonCache[slotIndex]
 		if merchantButton and merchantButton:IsVisible() then
 			local itemLink = isOnBuybackTab and GetBuybackItemLink(slotIndex) or GetMerchantItemLink(slotIndex)
@@ -36,9 +30,7 @@ local function updateMerchantItemBorders()
 		end
 	end
 
-	-- Update buyback slot (only visible on merchant tab)
 	if not isOnBuybackTab and buybackItemButtonCache and buybackItemButtonCache:IsVisible() then
-		-- Get most recent buyback item (highest valid index)
 		local numBuyback = GetNumBuybackItems()
 		local mostRecentBuybackLink = numBuyback > 0 and GetBuybackItemLink(numBuyback) or nil
 		addon:ApplyItemQualityBorderByLink(buybackItemButtonCache, mostRecentBuybackLink)

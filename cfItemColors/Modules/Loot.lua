@@ -10,17 +10,10 @@ local lootItemButtonCache = {}
 
 -- Initialize loot item button cache
 local function initializeLootItemButtonCache()
-	if #lootItemButtonCache == 0 then
-		for slotIndex = 1, LOOTFRAME_NUMBUTTONS do
-			lootItemButtonCache[slotIndex] = _G["LootButton"..slotIndex]
-		end
-	end
+	addon:BuildButtonCache(lootItemButtonCache, "LootButton%d", LOOTFRAME_NUMBUTTONS)
 end
 
--- Update loot item quality borders
 local function updateLootItemBorders(slotIndex)
-	if not addon:IsFrameVisible(LootFrame) then return end
-
 	initializeLootItemButtonCache()
 
 	local lootButton = lootItemButtonCache[slotIndex]

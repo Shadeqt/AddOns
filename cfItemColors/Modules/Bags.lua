@@ -13,7 +13,6 @@ local bankItemButtonCache = {}
 -- CACHE INITIALIZATION
 -- ============================
 
--- Initialize bag item button cache for specific container frame
 local function initializeBagItemButtonCache(containerFrameName, containerFrameSize)
 	if not bagItemButtonCache[containerFrameName] then
 		bagItemButtonCache[containerFrameName] = {}
@@ -23,20 +22,14 @@ local function initializeBagItemButtonCache(containerFrameName, containerFrameSi
 	end
 end
 
--- Initialize bank item button cache
 local function initializeBankItemButtonCache(bankSlotCount)
-	if #bankItemButtonCache == 0 then
-		for slotId = 1, bankSlotCount do
-			bankItemButtonCache[slotId] = _G["BankFrameItem"..slotId]
-		end
-	end
+	addon:BuildButtonCache(bankItemButtonCache, "BankFrameItem%d", bankSlotCount)
 end
 
 -- ============================
 -- UPDATE FUNCTIONS
 -- ============================
 
--- Update bag item quality borders for container frame
 local function updateBagItemBorders(containerFrame)
 	local containerId = containerFrame:GetID()
 	local containerFrameName = containerFrame:GetName()
@@ -51,10 +44,7 @@ local function updateBagItemBorders(containerFrame)
 	end
 end
 
--- Update bank item quality borders
 local function updateBankItemBorders()
-	if not addon:IsFrameVisible(BankFrame) then return end
-
 	local bankSlotCount = C_Container.GetContainerNumSlots(BANK_CONTAINER)
 	initializeBankItemButtonCache(bankSlotCount)
 
@@ -71,9 +61,6 @@ end
 -- ============================
 
 function addon:InitBagsModule()
-	-- Hook bag container frame updates
 	hooksecurefunc("ContainerFrame_Update", updateBagItemBorders)
-
-	-- Hook bank frame item updates
 	hooksecurefunc("BankFrameItemButton_Update", updateBankItemBorders)
 end

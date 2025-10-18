@@ -13,7 +13,6 @@ addonEventFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 
 addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 	if event == "PLAYER_LOGIN" then
-		-- Initialize all modules
 		addon:InitBagsModule()
 		addon:InitEquipmentModule(self)
 		addon:InitMerchantModule()
@@ -21,46 +20,44 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		addon:InitQuestsModule(self)
 
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_InspectUI" then
-		-- Register inspect events and hook when inspect UI loads
 		addon:RegisterInspectHooks(self)
 
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_TradeSkillUI" then
-		-- Hook profession window when trade skill UI loads
 		addon:InitProfessionsModule()
 
 	elseif event == "INSPECT_READY" then
-		-- Clear old borders immediately to prevent showing stale colors
 		addon.clearInspectEquipmentBorders()
 
-		-- Update inspect frame when inspection is ready (delay for item links to load from server)
+		if addon.pendingInspectTimer and addon.pendingInspectTimer.Cancel then
+			addon.pendingInspectTimer:Cancel()
+		end
+
 		local targetGUID = UnitGUID("target")
-		C_Timer.After(0.05, function()
-			addon.updateInspectEquipmentBorders(targetGUID)
-		end)
+
+		if C_Timer.NewTimer then
+			addon.pendingInspectTimer = C_Timer.NewTimer(0.05, function()
+				addon.updateInspectEquipmentBorders(targetGUID)
+				addon.pendingInspectTimer = nil
+			end)
+		else
+			addon.pendingInspectTimer = nil
+			C_Timer.After(0.05, function()
+				addon.updateInspectEquipmentBorders(targetGUID)
+			end)
+		end
 
 	elseif event == "UNIT_INVENTORY_CHANGED" and addonName == "target" then
-		-- Update inspect frame when target's inventory changes
 		if addon:IsFrameVisible(InspectFrame) then
 			addon.updateInspectEquipmentBorders()
 		end
 
 	elseif event == "QUEST_LOG_UPDATE" then
-		-- Update quest log borders when quest log changes
 		addon.updateQuestLogBorders()
 
 	elseif event == "GET_ITEM_INFO_RECEIVED" then
-		-- Retry pending border updates when item info loads from server
-		local itemId = addonName  -- Second parameter is itemId for this event
+		local itemId = addonName
 		addon:OnGetItemInfoReceived(itemId)
 
 	end
 end)
 
--- Command to clear addon caches for testing
-SLASH_CFRESET1 = "/cfreset"
-SlashCmdList["CFRESET"] = function()
-	addon.pendingItemUpdates = {}
-	addon.buttonQualityStateCache = {}
-	setmetatable(addon.buttonQualityStateCache, {__mode = "k"})
-	print("cfItemColors: Caches reset")
-end

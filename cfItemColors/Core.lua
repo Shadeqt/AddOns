@@ -46,8 +46,11 @@ addon.buttonQualityStateCache = {}
 setmetatable(addon.buttonQualityStateCache, {__mode = "k"})
 
 -- Pending item info requests (for items not yet cached by client)
--- Maps itemId -> array of {button, containerId, slotId, link}
+-- Maps itemId -> array of {button, itemId}
 addon.pendingItemUpdates = {}
+
+-- Pending inspect timer (cancelable to prevent timer stacking)
+addon.pendingInspectTimer = nil
 
 -- ============================
 -- UTILITY FUNCTIONS
@@ -58,19 +61,33 @@ function addon:IsFrameVisible(frame)
 	return frame and frame:IsVisible()
 end
 
--- Handle GET_ITEM_INFO_RECEIVED event to retry failed GetItemInfo calls
+-- Build cache of buttons from pattern (e.g., "LootButton%d")
+function addon:BuildButtonCache(cache, pattern, count)
+	if #cache == 0 then
+		for i = 1, count do
+			cache[i] = _G[pattern:format(i)]
+		end
+	end
+	return cache
+end
+
+-- Cache a single button by name
+function addon:CacheButton(cache, key, frameName)
+	if not cache[key] then
+		cache[key] = _G[frameName]
+	end
+end
+
+-- Retry pending border updates when item info becomes available
 function addon:OnGetItemInfoReceived(itemId)
 	local pending = self.pendingItemUpdates[itemId]
 	if not pending then return end
 
-	-- Retry all pending updates for this item
-	for _, updateInfo in ipairs(pending) do
-		if updateInfo.containerId then
-			-- Retry container item update
-			self:ApplyContainerItemBorder(updateInfo.button, updateInfo.containerId, updateInfo.slotId)
-		elseif updateInfo.link then
-			-- Retry item link update
-			self:ApplyItemQualityBorderByLink(updateInfo.button, updateInfo.link)
+	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
+
+	if itemName then
+		for _, updateInfo in ipairs(pending) do
+			self:ApplyItemQualityBorder(updateInfo.button, itemQuality, itemType)
 		end
 	end
 
@@ -91,7 +108,7 @@ end
 -- BORDER CREATION
 -- ============================
 
--- Create quality border texture for item button
+-- Create border texture for item button
 function addon:CreateQualityBorder(itemButton)
 	if itemButton.cfQualityBorder then
 		return itemButton.cfQualityBorder
@@ -105,12 +122,8 @@ function addon:CreateQualityBorder(itemButton)
 	qualityBorder:SetHeight(72)
 	qualityBorder:SetPoint("CENTER", itemButton)
 
-	-- Override positioning for specific button types (uses default 70x72 size)
+	-- Quest and reagent buttons need left-offset positioning
 	local buttonName = itemButton:GetName() or ""
-
-	-- Quest items and tradeskill reagents use left-offset positioning
-	-- Matches: QuestInfoRewardsFrameQuestInfoItem, QuestProgressItem, QuestLogItem, TradeSkillReagent1-8
-	-- Note: TradeSkillSkillIcon uses default CENTER positioning (no override needed)
 	if string.find(buttonName, "Quest") or string.find(buttonName, "^TradeSkillReagent%d+$") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
 	end
@@ -125,7 +138,7 @@ end
 -- BORDER APPLICATION
 -- ============================
 
--- Hide border and clear cache for button (prevents creating border just to hide it)
+-- Hide border and clear cache
 function addon:HideBorder(itemButton)
 	if itemButton.cfQualityBorder then
 		itemButton.cfQualityBorder:Hide()
@@ -133,18 +146,15 @@ function addon:HideBorder(itemButton)
 	end
 end
 
--- Apply quality color to item button border based on item quality and type
+-- Apply quality border to item button
 function addon:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
-	-- Convert to numeric state key for efficient comparison
 	local stateKey = (itemType == "Quest" and self.QUEST_ITEM_QUALITY) or itemQuality or 0
 
-	-- Skip if state hasn't changed
 	if self.buttonQualityStateCache[itemButton] == stateKey then return end
 
 	self.buttonQualityStateCache[itemButton] = stateKey
 	local qualityBorder = self:CreateQualityBorder(itemButton)
 
-	-- Show border for quest items or uncommon+ quality (>= 2)
 	if stateKey == self.QUEST_ITEM_QUALITY or stateKey >= 2 then
 		local r, g, b = self:GetItemQualityColor(stateKey)
 		qualityBorder:SetVertexColor(r, g, b)
@@ -154,7 +164,7 @@ function addon:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
 	end
 end
 
--- Apply quality border to container item button (bags/bank)
+-- Apply border to container item (bags/bank)
 function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 	local itemId = C_Container.GetContainerItemID(containerId, slotId)
 
@@ -165,14 +175,11 @@ function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 
 	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
 
-	-- If GetItemInfo returns nil, item isn't cached yet - queue for retry
-	-- Check itemName (first return) as it's most reliable indicator
 	if not itemName then
 		self.pendingItemUpdates[itemId] = self.pendingItemUpdates[itemId] or {}
 		table.insert(self.pendingItemUpdates[itemId], {
 			button = itemButton,
-			containerId = containerId,
-			slotId = slotId
+			itemId = itemId
 		})
 		return
 	end
@@ -180,7 +187,7 @@ function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 	self:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
--- Apply quality border to item button using item link
+-- Apply border using item link
 function addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 	if not itemLink then
 		self:HideBorder(itemButton)
@@ -189,16 +196,13 @@ function addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 
 	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
 
-	-- If GetItemInfo returns nil, item isn't cached yet - queue for retry
-	-- Check itemName (first return) as it's most reliable indicator
 	if not itemName then
-		-- Extract itemId from link for event tracking
 		local itemId = tonumber(itemLink:match("item:(%d+)"))
 		if itemId then
 			self.pendingItemUpdates[itemId] = self.pendingItemUpdates[itemId] or {}
 			table.insert(self.pendingItemUpdates[itemId], {
 				button = itemButton,
-				link = itemLink
+				itemId = itemId
 			})
 		end
 		return

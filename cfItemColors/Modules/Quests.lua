@@ -40,29 +40,17 @@ end
 
 -- Initialize quest reward button cache
 local function initializeQuestRewardButtonCache()
-	if #questRewardButtonCache == 0 then
-		for slotIndex = 1, addon.MAX_QUEST_REWARD_SLOTS do
-			questRewardButtonCache[slotIndex] = _G["QuestInfoRewardsFrameQuestInfoItem"..slotIndex]
-		end
-	end
+	addon:BuildButtonCache(questRewardButtonCache, "QuestInfoRewardsFrameQuestInfoItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 end
 
 -- Initialize quest required item button cache
 local function initializeQuestRequiredItemButtonCache()
-	if #questRequiredItemButtonCache == 0 then
-		for slotIndex = 1, addon.MAX_QUEST_REWARD_SLOTS do
-			questRequiredItemButtonCache[slotIndex] = _G["QuestProgressItem"..slotIndex]
-		end
-	end
+	addon:BuildButtonCache(questRequiredItemButtonCache, "QuestProgressItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 end
 
 -- Initialize quest log button cache
 local function initializeQuestLogButtonCache()
-	if #questLogButtonCache == 0 then
-		for slotIndex = 1, addon.MAX_QUEST_REWARD_SLOTS do
-			questLogButtonCache[slotIndex] = _G["QuestLogItem"..slotIndex]
-		end
-	end
+	addon:BuildButtonCache(questLogButtonCache, "QuestLogItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 end
 
 -- ============================
@@ -80,23 +68,25 @@ local function updateQuestItemBordersCore(buttonCache, numChoices, totalItems, i
 	end
 end
 
--- Update quest reward item quality borders
 local function updateQuestRewardBorders()
-	if not addon:IsFrameVisible(QuestFrame) then return end
+	if not addon:IsFrameVisible(QuestFrame) and not addon:IsFrameVisible(QuestLogFrame) then return end
 
 	initializeQuestRewardButtonCache()
 
-	local numChoices = GetNumQuestChoices()
-	local numRewards = GetNumQuestRewards()
-	local totalItems = numChoices + numRewards
+	local numChoices, numRewards
+	if addon:IsFrameVisible(QuestLogFrame) then
+		numChoices = GetNumQuestLogChoices()
+		numRewards = GetNumQuestLogRewards()
+	else
+		numChoices = GetNumQuestChoices()
+		numRewards = GetNumQuestRewards()
+	end
 
-	updateQuestItemBordersCore(questRewardButtonCache, numChoices, totalItems, false)
+	local totalItems = numChoices + numRewards
+	updateQuestItemBordersCore(questRewardButtonCache, numChoices, totalItems, addon:IsFrameVisible(QuestLogFrame))
 end
 
--- Update quest required item borders (items you need to turn in)
 local function updateQuestRequiredItemBorders()
-	if not addon:IsFrameVisible(QuestFrame) then return end
-
 	initializeQuestRequiredItemButtonCache()
 
 	local numRequiredItems = GetNumQuestItems()
@@ -109,7 +99,6 @@ local function updateQuestRequiredItemBorders()
 	end
 end
 
--- Update quest log item quality borders
 local function updateQuestLogBorders()
 	if not QuestLogFrame then return end
 
@@ -130,19 +119,13 @@ end
 -- ============================
 
 function addon:InitQuestsModule(eventFrame)
-	-- Hook quest frame updates (rewards)
 	hooksecurefunc("QuestInfo_Display", updateQuestRewardBorders)
-	hooksecurefunc("QuestFrameItems_Update", updateQuestRewardBorders)
-
-	-- Hook quest progress updates (required items for turn-in)
 	hooksecurefunc("QuestFrameProgressItems_Update", updateQuestRequiredItemBorders)
 
-	-- Hook quest log updates
 	eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
 	if QuestLogFrame then
 		QuestLogFrame:HookScript("OnShow", updateQuestLogBorders)
 	end
 
-	-- Store function for event handler
 	self.updateQuestLogBorders = updateQuestLogBorders
 end

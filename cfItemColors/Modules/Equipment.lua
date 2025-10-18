@@ -20,7 +20,6 @@ local equipmentSlotNames = {
 -- CACHE INITIALIZATION
 -- ============================
 
--- Cached equipment slot Ids (eliminates repeated GetInventorySlotInfo calls)
 local function initializeEquipmentSlotIdCache()
 	if next(equipmentSlotIdCache) == nil then
 		for _, slotName in ipairs(equipmentSlotNames) do
@@ -29,7 +28,6 @@ local function initializeEquipmentSlotIdCache()
 	end
 end
 
--- Initialize equipment slot button cache for frame prefix (Character/Inspect)
 local function initializeEquipmentSlotButtonCache(framePrefix)
 	if not equipmentSlotButtonCache[framePrefix] then
 		equipmentSlotButtonCache[framePrefix] = {}
@@ -44,7 +42,6 @@ end
 -- UPDATE FUNCTIONS
 -- ============================
 
--- Update equipment item quality borders for character or inspect frame
 local function updateEquipmentItemBorders(framePrefix, unitId, parentFrame)
 	if not addon:IsFrameVisible(parentFrame) then return end
 
@@ -61,14 +58,11 @@ local function updateEquipmentItemBorders(framePrefix, unitId, parentFrame)
 	end
 end
 
--- Update character equipment item quality borders
 local function updateCharacterEquipmentBorders()
 	updateEquipmentItemBorders("Character", "player", CharacterFrame)
 end
 
--- Clear all inspect equipment borders (called when starting new inspect)
 local function clearInspectEquipmentBorders()
-	-- Only clear if cache exists (no need to initialize just to clear)
 	if not equipmentSlotButtonCache["Inspect"] then return end
 
 	for _, slotName in ipairs(equipmentSlotNames) do
@@ -80,9 +74,7 @@ local function clearInspectEquipmentBorders()
 	end
 end
 
--- Update inspect equipment item quality borders
 local function updateInspectEquipmentBorders(expectedTargetGUID)
-	-- Verify target hasn't changed (prevent stale timer updates)
 	if expectedTargetGUID and UnitGUID("target") ~= expectedTargetGUID then
 		return
 	end
@@ -95,20 +87,16 @@ end
 -- ============================
 
 function addon:InitEquipmentModule(eventFrame)
-	-- Hook character equipment updates
 	hooksecurefunc("PaperDollItemSlotButton_Update", updateCharacterEquipmentBorders)
 
-	-- Register inspect hooks if inspect UI is already loaded
 	if IsAddOnLoaded("Blizzard_InspectUI") then
 		self:RegisterInspectHooks(eventFrame)
 	end
 
-	-- Store functions for external access
 	self.clearInspectEquipmentBorders = clearInspectEquipmentBorders
 	self.updateInspectEquipmentBorders = updateInspectEquipmentBorders
 end
 
--- Register inspect frame event handlers and hooks
 function addon:RegisterInspectHooks(eventFrame)
 	eventFrame:RegisterEvent("INSPECT_READY")
 	eventFrame:RegisterEvent("UNIT_INVENTORY_CHANGED")
