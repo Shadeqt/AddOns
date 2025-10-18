@@ -10,6 +10,9 @@ local questRewardButtonCache = {}
 local questRequiredItemButtonCache = {}
 local questLogButtonCache = {}
 
+-- Track last displayed quest to detect when quest changes
+local lastDisplayedQuestTitle = nil
+
 -- ============================
 -- HELPER FUNCTIONS
 -- ============================
@@ -54,6 +57,14 @@ local function updateQuestRewardBorders()
 
 	addon:BuildButtonCache(questRewardButtonCache, "QuestInfoRewardsFrameQuestInfoItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 
+	-- Get current quest title to detect quest changes
+	local currentQuestTitle = GetTitleText()
+	if currentQuestTitle ~= lastDisplayedQuestTitle then
+		-- Quest changed, clear cached state to force refresh
+		addon:ClearButtonCacheState(questRewardButtonCache, addon.MAX_QUEST_REWARD_SLOTS)
+		lastDisplayedQuestTitle = currentQuestTitle
+	end
+
 	local numChoices, numRewards
 	if addon:IsFrameVisible(QuestLogFrame) then
 		numChoices = GetNumQuestLogChoices()
@@ -85,6 +96,9 @@ local function updateQuestLogBorders()
 
 	addon:BuildButtonCache(questLogButtonCache, "QuestLogItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 
+	-- Clear cached state to force refresh (buttons are reused between quests)
+	addon:ClearButtonCacheState(questLogButtonCache, addon.MAX_QUEST_REWARD_SLOTS)
+
 	local selectedQuest = GetQuestLogSelection()
 	if not selectedQuest or selectedQuest == 0 then return end
 
@@ -108,5 +122,7 @@ function addon:InitQuestsModule(eventFrame)
 		QuestLogFrame:HookScript("OnShow", updateQuestLogBorders)
 	end
 
+	-- Expose functions for pending item updates
+	self.updateQuestRewardBorders = updateQuestRewardBorders
 	self.updateQuestLogBorders = updateQuestLogBorders
 end

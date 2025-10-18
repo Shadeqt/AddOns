@@ -87,6 +87,8 @@ function addon:OnGetItemInfoReceived(itemId)
 
 	if itemName then
 		for _, updateInfo in ipairs(pending) do
+			-- Clear cached state before applying to force update
+			self.buttonQualityStateCache[updateInfo.button] = nil
 			self:ApplyItemQualityBorder(updateInfo.button, itemQuality, itemType)
 		end
 	end
@@ -168,6 +170,16 @@ function addon:HideBorder(itemButton)
 	if itemButton.cfQualityBorder then
 		itemButton.cfQualityBorder:Hide()
 		self.buttonQualityStateCache[itemButton] = nil
+	end
+end
+
+-- Clear cache state for array of buttons (forces refresh on next update)
+function addon:ClearButtonCacheState(buttonCache, count)
+	for index = 1, count do
+		local button = buttonCache[index]
+		if button then
+			self.buttonQualityStateCache[button] = nil
+		end
 	end
 end
 
