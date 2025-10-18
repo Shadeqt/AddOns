@@ -1,23 +1,8 @@
 ## Interface: 11507
 ## Title: cfItemColors
-## Notes: Colors item borders based on quality for bags, bank, character, merchant, loot, and quest frames
+## Notes: Optimized item border coloring based on quality with state caching
 ## Author: Cowfoot
 ## Version: 2.0.0
-## SavedVariables: cfItemColorsDB
 ## DefaultState: enabled
-## X-Category: Inventory & Items
-## X-Website: https://github.com/cowfoot/cfItemColors
 
-# Core files (must load first)
-Core.lua
-
-# Modules (order doesn't matter)
-Modules\Bags.lua
-Modules\Equipment.lua
-Modules\Quests.lua
-Modules\Professions.lua
-Modules\Merchant.lua
-Modules\Loot.lua
-
-# Initialization (must load last)
-Init.lua
+cfItemColors.lua

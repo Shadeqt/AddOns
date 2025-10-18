@@ -1,0 +1,8 @@
+## Interface: 11507
+## Title: cfItemColors Performance Test
+## Notes: Compare performance of cfItemColors vs cfItemColorsSimple
+## Author: Cowfoot
+## Version: 1.0.0
+## DefaultState: enabled
+
+cfItemColorsPerformanceTest.lua

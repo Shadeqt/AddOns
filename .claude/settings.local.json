@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"C:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfItemColors\" -name \"*.lua\" -exec wc -l {} +)",
+      "Bash(git restore cfItemColors/)",
+      "Bash(ls -la \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\")",
+      "Bash(ls -la \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\Baganator\")",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\Baganator\" -name \"*.lua\" -type f)",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\Baganator\\ItemViewCommon\" -name \"*.lua\" -type f)",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\Baganator\\Skins\" -name \"*.lua\" -type f)",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\Baganator\\Assets\" -type f)",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\Baganator\\Assets\" -type f -name \"*.tga\" -o -name \"*.blp\")",
+      "Bash(wc -l \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfItemColorsSimple\\cfItemColorsSimple.lua\")",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\oGlowClassic\" -name \"*.lua\" -type f)",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\ColoredInventoryItems\" -name \"*.lua\" -type f)",
+      "Bash(ls -la \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfItemColorsSimple\")",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\" -name \"cfItemColors*\" -type d)",
+      "Bash(wc -l \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfItemColors\\cfItemColors.lua\")",
+      "Bash(ls -la \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfItemColors\")",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfItemColors\" -name \"*.lua\" -exec wc -l {} +)",
+      "Bash(find \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\" -name \"*buttoncolors\" -o -name \"*ButtonColors\" -type d)",
+      "Bash(ls -la \"c:\\Program Files (x86)\\World of Warcraft\\_classic_era_\\Interface\\AddOns\\cfButtonColors\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
