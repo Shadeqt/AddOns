@@ -1,11 +1,8 @@
 ## Interface: 11507
 ## Title: cfButtonColors
-## Notes: Colors action buttons based on range and mana availability for Classic WoW
+## Notes: Action button icon coloring based on range and mana for Classic WoW
 ## Author: Cowfoot
-## Version: 1.0.0
-## SavedVariables: cfButtonColorsDB
+## Version: 2.0.0
 ## DefaultState: enabled
-## X-Category: Action Bars
-## X-Website: https://github.com/cowfoot/cfButtonColors
 
 cfButtonColors.lua
