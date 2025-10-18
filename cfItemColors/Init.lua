@@ -55,3 +55,12 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 
 	end
 end)
+
+-- Command to clear addon caches for testing
+SLASH_CFRESET1 = "/cfreset"
+SlashCmdList["CFRESET"] = function()
+	addon.pendingItemUpdates = {}
+	addon.buttonQualityStateCache = {}
+	setmetatable(addon.buttonQualityStateCache, {__mode = "k"})
+	print("cfItemColors: Caches reset")
+end

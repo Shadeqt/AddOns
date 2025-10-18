@@ -111,7 +111,7 @@ end
 
 -- Update quest log item quality borders
 local function updateQuestLogBorders()
-	if not addon:IsFrameVisible(QuestLogFrame) then return end
+	if not QuestLogFrame then return end
 
 	initializeQuestLogButtonCache()
 
