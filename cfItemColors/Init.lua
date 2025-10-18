@@ -18,7 +18,6 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 		addon:InitMerchantModule()
 		addon:InitLootModule()
 		addon:InitQuestsModule(self)
-		addon:InitProfessionsModule()
 
 	elseif event == "ADDON_LOADED" and addonName == "Blizzard_InspectUI" then
 		-- Register inspect events and hook when inspect UI loads

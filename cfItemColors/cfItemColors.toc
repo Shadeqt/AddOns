@@ -10,7 +10,6 @@
 
 # Core files (must load first)
 Core.lua
-BorderManager.lua
 
 # Modules (order doesn't matter)
 Modules\Bags.lua
