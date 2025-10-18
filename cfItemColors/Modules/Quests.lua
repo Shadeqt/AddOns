@@ -7,32 +7,29 @@ local addon = cfItemColors
 
 -- Button caches
 local questRewardButtonCache = {}
+local questRequiredItemButtonCache = {}
 local questLogButtonCache = {}
 
 -- ============================
 -- HELPER FUNCTIONS
 -- ============================
 
--- Get item quality for quest reward/choice at given index
-local function getQuestItemQuality(itemIndex, numChoices, isQuestLog)
+-- Get item link for quest reward/choice at given index
+local function getQuestItemLink(itemIndex, numChoices, isQuestLog)
 	if itemIndex <= numChoices then
 		-- This is a choice reward
 		if isQuestLog then
-			local _, _, _, quality = GetQuestLogChoiceInfo(itemIndex)
-			return quality
+			return GetQuestLogItemLink("choice", itemIndex)
 		else
-			local _, _, _, quality = GetQuestItemInfo("choice", itemIndex)
-			return quality
+			return GetQuestItemLink("choice", itemIndex)
 		end
 	else
 		-- This is a fixed reward
 		local rewardIndex = itemIndex - numChoices
 		if isQuestLog then
-			local _, _, _, quality = GetQuestLogRewardInfo(rewardIndex)
-			return quality
+			return GetQuestLogItemLink("reward", rewardIndex)
 		else
-			local _, _, _, quality = GetQuestItemInfo("reward", rewardIndex)
-			return quality
+			return GetQuestItemLink("reward", rewardIndex)
 		end
 	end
 end
@@ -46,6 +43,15 @@ local function initializeQuestRewardButtonCache()
 	if #questRewardButtonCache == 0 then
 		for slotIndex = 1, addon.MAX_QUEST_REWARD_SLOTS do
 			questRewardButtonCache[slotIndex] = _G["QuestInfoRewardsFrameQuestInfoItem"..slotIndex]
+		end
+	end
+end
+
+-- Initialize quest required item button cache
+local function initializeQuestRequiredItemButtonCache()
+	if #questRequiredItemButtonCache == 0 then
+		for slotIndex = 1, addon.MAX_QUEST_REWARD_SLOTS do
+			questRequiredItemButtonCache[slotIndex] = _G["QuestProgressItem"..slotIndex]
 		end
 	end
 end
@@ -68,8 +74,8 @@ local function updateQuestItemBordersCore(buttonCache, numChoices, totalItems, i
 	for itemIndex = 1, totalItems do
 		local itemButton = buttonCache[itemIndex]
 		if itemButton and itemButton:IsVisible() then
-			local itemQuality = getQuestItemQuality(itemIndex, numChoices, isQuestLog)
-			addon:ApplyItemQualityBorder(itemButton, itemQuality, nil)
+			local itemLink = getQuestItemLink(itemIndex, numChoices, isQuestLog)
+			addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 		end
 	end
 end
@@ -85,6 +91,22 @@ local function updateQuestRewardBorders()
 	local totalItems = numChoices + numRewards
 
 	updateQuestItemBordersCore(questRewardButtonCache, numChoices, totalItems, false)
+end
+
+-- Update quest required item borders (items you need to turn in)
+local function updateQuestRequiredItemBorders()
+	if not addon:IsFrameVisible(QuestFrame) then return end
+
+	initializeQuestRequiredItemButtonCache()
+
+	local numRequiredItems = GetNumQuestItems()
+	for itemIndex = 1, numRequiredItems do
+		local itemButton = questRequiredItemButtonCache[itemIndex]
+		if itemButton and itemButton:IsVisible() then
+			local itemLink = GetQuestItemLink("required", itemIndex)
+			addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
+		end
+	end
 end
 
 -- Update quest log item quality borders
@@ -108,9 +130,12 @@ end
 -- ============================
 
 function addon:InitQuestsModule(eventFrame)
-	-- Hook quest frame updates
+	-- Hook quest frame updates (rewards)
 	hooksecurefunc("QuestInfo_Display", updateQuestRewardBorders)
 	hooksecurefunc("QuestFrameItems_Update", updateQuestRewardBorders)
+
+	-- Hook quest progress updates (required items for turn-in)
+	hooksecurefunc("QuestFrameProgressItems_Update", updateQuestRequiredItemBorders)
 
 	-- Hook quest log updates
 	eventFrame:RegisterEvent("QUEST_LOG_UPDATE")

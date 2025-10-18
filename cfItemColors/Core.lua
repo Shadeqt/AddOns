@@ -41,7 +41,13 @@ addon.itemQualityColors = {
 -- ============================
 
 -- State cache to prevent redundant border updates
+-- Uses weak keys to prevent memory leaks from destroyed buttons
 addon.buttonQualityStateCache = {}
+setmetatable(addon.buttonQualityStateCache, {__mode = "k"})
+
+-- Pending item info requests (for items not yet cached by client)
+-- Maps itemId -> array of {button, containerId, slotId, link}
+addon.pendingItemUpdates = {}
 
 -- ============================
 -- UTILITY FUNCTIONS
@@ -50,6 +56,26 @@ addon.buttonQualityStateCache = {}
 -- Check if frame is valid and visible
 function addon:IsFrameVisible(frame)
 	return frame and frame:IsVisible()
+end
+
+-- Handle GET_ITEM_INFO_RECEIVED event to retry failed GetItemInfo calls
+function addon:OnGetItemInfoReceived(itemId)
+	local pending = self.pendingItemUpdates[itemId]
+	if not pending then return end
+
+	-- Retry all pending updates for this item
+	for _, updateInfo in ipairs(pending) do
+		if updateInfo.containerId then
+			-- Retry container item update
+			self:ApplyContainerItemBorder(updateInfo.button, updateInfo.containerId, updateInfo.slotId)
+		elseif updateInfo.link then
+			-- Retry item link update
+			self:ApplyItemQualityBorderByLink(updateInfo.button, updateInfo.link)
+		end
+	end
+
+	-- Clear pending updates for this item
+	self.pendingItemUpdates[itemId] = nil
 end
 
 -- Get RGB values for item quality color
@@ -82,6 +108,8 @@ function addon:CreateQualityBorder(itemButton)
 	-- Override positioning for specific button types (uses default 70x72 size)
 	local buttonName = itemButton:GetName() or ""
 	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
+		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
+	elseif string.find(buttonName, "QuestProgressItem") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
 	elseif string.find(buttonName, "QuestLogItem") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
@@ -139,7 +167,20 @@ function addon:ApplyContainerItemBorder(itemButton, containerId, slotId)
 		return
 	end
 
-	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
+	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemId)
+
+	-- If GetItemInfo returns nil, item isn't cached yet - queue for retry
+	-- Check itemName (first return) as it's most reliable indicator
+	if not itemName then
+		self.pendingItemUpdates[itemId] = self.pendingItemUpdates[itemId] or {}
+		table.insert(self.pendingItemUpdates[itemId], {
+			button = itemButton,
+			containerId = containerId,
+			slotId = slotId
+		})
+		return
+	end
+
 	self:ApplyItemQualityBorder(itemButton, itemQuality, itemType)
 end
 
@@ -150,9 +191,20 @@ function addon:ApplyItemQualityBorderByLink(itemButton, itemLink)
 		return
 	end
 
-	local _, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
-	if not itemQuality then
-		self:HideBorder(itemButton)
+	local itemName, _, itemQuality, _, _, itemType = GetItemInfo(itemLink)
+
+	-- If GetItemInfo returns nil, item isn't cached yet - queue for retry
+	-- Check itemName (first return) as it's most reliable indicator
+	if not itemName then
+		-- Extract itemId from link for event tracking
+		local itemId = tonumber(itemLink:match("item:(%d+)"))
+		if itemId then
+			self.pendingItemUpdates[itemId] = self.pendingItemUpdates[itemId] or {}
+			table.insert(self.pendingItemUpdates[itemId], {
+				button = itemButton,
+				link = itemLink
+			})
+		end
 		return
 	end
 

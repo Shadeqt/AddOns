@@ -9,6 +9,7 @@ local addon = cfItemColors
 local addonEventFrame = CreateFrame("Frame")
 addonEventFrame:RegisterEvent("PLAYER_LOGIN")
 addonEventFrame:RegisterEvent("ADDON_LOADED")
+addonEventFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 
 addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 	if event == "PLAYER_LOGIN" then
@@ -46,6 +47,11 @@ addonEventFrame:SetScript("OnEvent", function(self, event, addonName)
 	elseif event == "QUEST_LOG_UPDATE" then
 		-- Update quest log borders when quest log changes
 		addon.updateQuestLogBorders()
+
+	elseif event == "GET_ITEM_INFO_RECEIVED" then
+		-- Retry pending border updates when item info loads from server
+		local itemId = addonName  -- Second parameter is itemId for this event
+		addon:OnGetItemInfoReceived(itemId)
 
 	end
 end)

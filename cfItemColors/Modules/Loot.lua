@@ -18,16 +18,16 @@ local function initializeLootItemButtonCache()
 end
 
 -- Update loot item quality borders
-local function updateLootItemBorders()
+local function updateLootItemBorders(slotIndex)
 	if not addon:IsFrameVisible(LootFrame) then return end
 
 	initializeLootItemButtonCache()
 
-	for slotIndex = 1, GetNumLootItems() do
-		local lootButton = lootItemButtonCache[slotIndex]
-		if lootButton and lootButton:IsVisible() then
-			local _, _, _, lootQuality = GetLootSlotInfo(slotIndex)
-			addon:ApplyItemQualityBorder(lootButton, lootQuality, nil)
+	local lootButton = lootItemButtonCache[slotIndex]
+	if lootButton then
+		local itemLink = GetLootSlotLink(slotIndex)
+		if itemLink then
+			addon:ApplyItemQualityBorderByLink(lootButton, itemLink)
 		end
 	end
 end
