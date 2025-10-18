@@ -20,28 +20,32 @@ for _, slotName in ipairs(EQUIPMENT_SLOTS) do
 	EQUIPMENT_SLOT_IDS[slotName] = GetInventorySlotInfo(slotName.."Slot")
 end
 
--- Button quality state cache with weak keys (prevents redundant border updates, auto-cleanup on button destruction)
-local buttonStateCache = {}
-setmetatable(buttonStateCache, {__mode = "k"})
-
 -- Get existing border texture or create new one
 local function getOrCreateBorder(button)
-	-- Use built-in IconBorder if available
-	if button.IconBorder then
-		return button.IconBorder
-	end
-
-	-- Use cached custom border if already created
+	-- Return existing custom border if already created
 	if button.cfQualityBorder then
 		return button.cfQualityBorder
 	end
 
-	-- Create new border texture
+	-- Use built-in IconBorder if available (currently active)
+	if button.IconBorder then
+		return button.IconBorder
+	end
+
+	-- Create new border texture for buttons without IconBorder
 	local border = button:CreateTexture(nil, "OVERLAY")
+
+	-- Current fallback: WhiteIconFrame texture (native item border look)
 	border:SetTexture("Interface\\Common\\WhiteIconFrame")
 	border:SetTexCoord(0, 1, 0, 1)
 	border:SetBlendMode("BLEND")
 	border:SetAlpha(1)
+
+	-- Alternative: Action button border (brighter glow effect)
+	-- border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+	-- border:SetTexCoord(0.25, 0.75, 0.25, 0.75) -- Crop to fit square slots
+	-- border:SetBlendMode("ADD")
+	-- border:SetAlpha(0.8)
 
 	-- Position border to match icon texture
 	local buttonName = button:GetName() or ""
@@ -61,24 +65,22 @@ end
 local function applyQualityColor(button, itemIdOrLink)
 	local border = getOrCreateBorder(button)
 
-	-- Hide border and clear cache if no item
+	-- Hide border if no item
 	if not itemIdOrLink then
 		border:Hide()
-		buttonStateCache[button] = nil
 		return
 	end
 
 	-- Get item info
 	local _, _, quality, _, _, itemType, _, _, _, _, _, classID = GetItemInfo(itemIdOrLink)
-	if not quality then return end
+	if not quality then
+		-- Item data not loaded yet, retry on next update
+		return
+	end
 
 	-- Determine quality level (quest items use special quality value)
 	local isQuest = (itemType == "Quest") or (classID == 12)
 	local qualityLevel = isQuest and 99 or quality
-
-	-- Skip update if quality unchanged (cache hit)
-	if buttonStateCache[button] == qualityLevel then return end
-	buttonStateCache[button] = qualityLevel
 
 	-- Show colored border for uncommon+ items
 	if qualityLevel >= 2 then
@@ -282,13 +284,13 @@ local function updateQuestLogRewards()
 	updateQuestRewards("QuestLogItem", true)
 end
 
-local questLogEventFrame = CreateFrame("Frame")
-questLogEventFrame:RegisterEvent("QUEST_LOG_UPDATE")
-questLogEventFrame:SetScript("OnEvent", updateQuestLogRewards)
-
+-- Update when quest log opens
 if QuestLogFrame then
 	QuestLogFrame:HookScript("OnShow", updateQuestLogRewards)
 end
+
+-- Update when clicking different quests in quest log
+hooksecurefunc("QuestLog_Update", updateQuestLogRewards)
 
 -- Professions (trade skills)
 local function updateTradeSkillItems()
