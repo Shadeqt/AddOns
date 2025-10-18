@@ -107,15 +107,11 @@ function addon:CreateQualityBorder(itemButton)
 
 	-- Override positioning for specific button types (uses default 70x72 size)
 	local buttonName = itemButton:GetName() or ""
-	if string.find(buttonName, "QuestInfoRewardsFrameQuestInfoItem") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
-	elseif string.find(buttonName, "QuestProgressItem") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
-	elseif string.find(buttonName, "QuestLogItem") then
-		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
-	elseif string.find(buttonName, "TradeSkillSkillIcon") then
-		qualityBorder:SetPoint("CENTER", itemButton)
-	elseif string.find(buttonName, "^TradeSkillReagent%d+$") then
+
+	-- Quest items and tradeskill reagents use left-offset positioning
+	-- Matches: QuestInfoRewardsFrameQuestInfoItem, QuestProgressItem, QuestLogItem, TradeSkillReagent1-8
+	-- Note: TradeSkillSkillIcon uses default CENTER positioning (no override needed)
+	if string.find(buttonName, "Quest") or string.find(buttonName, "^TradeSkillReagent%d+$") then
 		qualityBorder:SetPoint("LEFT", itemButton, "LEFT", -15, 2)
 	end
 
@@ -133,7 +129,7 @@ end
 function addon:HideBorder(itemButton)
 	if itemButton.cfQualityBorder then
 		itemButton.cfQualityBorder:Hide()
-		self.buttonQualityStateCache[itemButton] = 0
+		self.buttonQualityStateCache[itemButton] = nil
 	end
 end
 
