@@ -17,18 +17,20 @@ local equipmentSlotNames = {
 }
 
 -- ============================
--- CACHE INITIALIZATION
+-- UPDATE FUNCTIONS
 -- ============================
 
-local function initializeEquipmentSlotIdCache()
+local function updateEquipmentItemBorders(framePrefix, unitId, parentFrame)
+	if not addon:IsFrameVisible(parentFrame) then return end
+
+	-- Initialize slot ID cache
 	if next(equipmentSlotIdCache) == nil then
 		for _, slotName in ipairs(equipmentSlotNames) do
 			equipmentSlotIdCache[slotName] = GetInventorySlotInfo(slotName.."Slot")
 		end
 	end
-end
 
-local function initializeEquipmentSlotButtonCache(framePrefix)
+	-- Initialize button cache for this frame prefix
 	if not equipmentSlotButtonCache[framePrefix] then
 		equipmentSlotButtonCache[framePrefix] = {}
 		for _, slotName in ipairs(equipmentSlotNames) do
@@ -36,17 +38,6 @@ local function initializeEquipmentSlotButtonCache(framePrefix)
 			equipmentSlotButtonCache[framePrefix][slotName] = _G[equipmentButtonName]
 		end
 	end
-end
-
--- ============================
--- UPDATE FUNCTIONS
--- ============================
-
-local function updateEquipmentItemBorders(framePrefix, unitId, parentFrame)
-	if not addon:IsFrameVisible(parentFrame) then return end
-
-	initializeEquipmentSlotButtonCache(framePrefix)
-	initializeEquipmentSlotIdCache()
 
 	for _, slotName in ipairs(equipmentSlotNames) do
 		local slotId = equipmentSlotIdCache[slotName]

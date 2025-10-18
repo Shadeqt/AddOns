@@ -35,25 +35,6 @@ local function getQuestItemLink(itemIndex, numChoices, isQuestLog)
 end
 
 -- ============================
--- CACHE INITIALIZATION
--- ============================
-
--- Initialize quest reward button cache
-local function initializeQuestRewardButtonCache()
-	addon:BuildButtonCache(questRewardButtonCache, "QuestInfoRewardsFrameQuestInfoItem%d", addon.MAX_QUEST_REWARD_SLOTS)
-end
-
--- Initialize quest required item button cache
-local function initializeQuestRequiredItemButtonCache()
-	addon:BuildButtonCache(questRequiredItemButtonCache, "QuestProgressItem%d", addon.MAX_QUEST_REWARD_SLOTS)
-end
-
--- Initialize quest log button cache
-local function initializeQuestLogButtonCache()
-	addon:BuildButtonCache(questLogButtonCache, "QuestLogItem%d", addon.MAX_QUEST_REWARD_SLOTS)
-end
-
--- ============================
 -- UPDATE FUNCTIONS
 -- ============================
 
@@ -71,7 +52,7 @@ end
 local function updateQuestRewardBorders()
 	if not addon:IsFrameVisible(QuestFrame) and not addon:IsFrameVisible(QuestLogFrame) then return end
 
-	initializeQuestRewardButtonCache()
+	addon:BuildButtonCache(questRewardButtonCache, "QuestInfoRewardsFrameQuestInfoItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 
 	local numChoices, numRewards
 	if addon:IsFrameVisible(QuestLogFrame) then
@@ -87,7 +68,7 @@ local function updateQuestRewardBorders()
 end
 
 local function updateQuestRequiredItemBorders()
-	initializeQuestRequiredItemButtonCache()
+	addon:BuildButtonCache(questRequiredItemButtonCache, "QuestProgressItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 
 	local numRequiredItems = GetNumQuestItems()
 	for itemIndex = 1, numRequiredItems do
@@ -102,7 +83,7 @@ end
 local function updateQuestLogBorders()
 	if not QuestLogFrame then return end
 
-	initializeQuestLogButtonCache()
+	addon:BuildButtonCache(questLogButtonCache, "QuestLogItem%d", addon.MAX_QUEST_REWARD_SLOTS)
 
 	local selectedQuest = GetQuestLogSelection()
 	if not selectedQuest or selectedQuest == 0 then return end

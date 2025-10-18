@@ -105,6 +105,31 @@ function addon:GetItemQualityColor(quality)
 end
 
 -- ============================
+-- UNIFIED UPDATE PATTERNS
+-- ============================
+
+-- Update borders for array of buttons using item link getter function
+-- itemLinkGetter signature: function(index, button) -> itemLink
+function addon:UpdateButtonBordersWithItemLinks(buttonCache, maxCount, itemLinkGetter)
+	for index = 1, maxCount do
+		local button = buttonCache[index]
+		if button and button:IsVisible() then
+			local itemLink = itemLinkGetter(index, button)
+			self:ApplyItemQualityBorderByLink(button, itemLink)
+		end
+	end
+end
+
+-- Build cache and update borders in one call (for simple cases)
+-- pattern: button name pattern like "LootButton%d"
+-- count: number of buttons to cache
+-- itemLinkGetter: function(index, button) -> itemLink
+function addon:InitCacheAndUpdateBorders(buttonCache, pattern, count, itemLinkGetter)
+	self:BuildButtonCache(buttonCache, pattern, count)
+	self:UpdateButtonBordersWithItemLinks(buttonCache, count, itemLinkGetter)
+end
+
+-- ============================
 -- BORDER CREATION
 -- ============================
 

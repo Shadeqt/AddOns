@@ -9,19 +9,17 @@ local addon = cfItemColors
 local merchantItemButtonCache = {}
 local buybackItemButtonCache = nil
 
--- Initialize merchant item button cache
-local function initializeMerchantItemButtonCache()
+local function updateMerchantItemBorders()
+	-- Initialize caches
 	addon:BuildButtonCache(merchantItemButtonCache, "MerchantItem%dItemButton", addon.MAX_MERCHANT_SLOTS)
 	if not buybackItemButtonCache then
 		buybackItemButtonCache = _G["MerchantBuyBackItemItemButton"]
 	end
-end
-
-local function updateMerchantItemBorders()
-	initializeMerchantItemButtonCache()
 
 	local isOnBuybackTab = MerchantFrame.selectedTab == 2
 	local numMerchantItems = GetMerchantNumItems()
+
+	-- Update merchant item borders
 	for slotIndex = 1, numMerchantItems do
 		local merchantButton = merchantItemButtonCache[slotIndex]
 		if merchantButton and merchantButton:IsVisible() then
@@ -30,6 +28,7 @@ local function updateMerchantItemBorders()
 		end
 	end
 
+	-- Update buyback button border
 	if not isOnBuybackTab and buybackItemButtonCache and buybackItemButtonCache:IsVisible() then
 		local numBuyback = GetNumBuybackItems()
 		local mostRecentBuybackLink = numBuyback > 0 and GetBuybackItemLink(numBuyback) or nil

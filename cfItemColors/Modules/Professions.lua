@@ -8,27 +8,22 @@ local addon = cfItemColors
 -- Button cache
 local professionButtonCache = {}
 
--- Initialize profession button cache
-local function initializeProfessionButtonCache()
-	-- Cache the crafted item button
-	addon:CacheButton(professionButtonCache, "craftedItem", "TradeSkillSkillIcon")
-
-	-- Cache reagent buttons
-	addon:BuildButtonCache(professionButtonCache, "TradeSkillReagent%d", addon.MAX_PROFESSION_REAGENTS)
-end
-
 local function updateProfessionBorders()
-	initializeProfessionButtonCache()
+	-- Initialize caches
+	addon:CacheButton(professionButtonCache, "craftedItem", "TradeSkillSkillIcon")
+	addon:BuildButtonCache(professionButtonCache, "TradeSkillReagent%d", addon.MAX_PROFESSION_REAGENTS)
 
 	local selectedRecipe = GetTradeSkillSelectionIndex()
 	if not selectedRecipe or selectedRecipe == 0 then return end
 
+	-- Update crafted item border
 	local craftedButton = professionButtonCache.craftedItem
 	if craftedButton and craftedButton:IsVisible() then
 		local itemLink = GetTradeSkillItemLink(selectedRecipe)
 		addon:ApplyItemQualityBorderByLink(craftedButton, itemLink)
 	end
 
+	-- Update reagent borders
 	local numReagents = GetTradeSkillNumReagents(selectedRecipe)
 	for reagentIndex = 1, numReagents do
 		local reagentButton = professionButtonCache[reagentIndex]

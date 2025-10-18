@@ -8,20 +8,13 @@ local addon = cfItemColors
 -- Button cache
 local lootItemButtonCache = {}
 
--- Initialize loot item button cache
-local function initializeLootItemButtonCache()
-	addon:BuildButtonCache(lootItemButtonCache, "LootButton%d", LOOTFRAME_NUMBUTTONS)
-end
-
 local function updateLootItemBorders(slotIndex)
-	initializeLootItemButtonCache()
+	addon:BuildButtonCache(lootItemButtonCache, "LootButton%d", LOOTFRAME_NUMBUTTONS)
 
 	local lootButton = lootItemButtonCache[slotIndex]
-	if lootButton then
+	if lootButton and lootButton:IsVisible() then
 		local itemLink = GetLootSlotLink(slotIndex)
-		if itemLink then
-			addon:ApplyItemQualityBorderByLink(lootButton, itemLink)
-		end
+		addon:ApplyItemQualityBorderByLink(lootButton, itemLink)
 	end
 end
 

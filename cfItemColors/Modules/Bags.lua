@@ -10,23 +10,6 @@ local bagItemButtonCache = {}
 local bankItemButtonCache = {}
 
 -- ============================
--- CACHE INITIALIZATION
--- ============================
-
-local function initializeBagItemButtonCache(containerFrameName, containerFrameSize)
-	if not bagItemButtonCache[containerFrameName] then
-		bagItemButtonCache[containerFrameName] = {}
-		for slotIndex = 1, containerFrameSize do
-			bagItemButtonCache[containerFrameName][slotIndex] = _G[containerFrameName.."Item"..slotIndex]
-		end
-	end
-end
-
-local function initializeBankItemButtonCache(bankSlotCount)
-	addon:BuildButtonCache(bankItemButtonCache, "BankFrameItem%d", bankSlotCount)
-end
-
--- ============================
 -- UPDATE FUNCTIONS
 -- ============================
 
@@ -34,7 +17,13 @@ local function updateBagItemBorders(containerFrame)
 	local containerId = containerFrame:GetID()
 	local containerFrameName = containerFrame:GetName()
 
-	initializeBagItemButtonCache(containerFrameName, containerFrame.size)
+	-- Initialize bag button cache for this container
+	if not bagItemButtonCache[containerFrameName] then
+		bagItemButtonCache[containerFrameName] = {}
+		for slotIndex = 1, containerFrame.size do
+			bagItemButtonCache[containerFrameName][slotIndex] = _G[containerFrameName.."Item"..slotIndex]
+		end
+	end
 
 	for slotIndex = 1, containerFrame.size do
 		local itemButton = bagItemButtonCache[containerFrameName][slotIndex]
@@ -46,7 +35,7 @@ end
 
 local function updateBankItemBorders()
 	local bankSlotCount = C_Container.GetContainerNumSlots(BANK_CONTAINER)
-	initializeBankItemButtonCache(bankSlotCount)
+	addon:BuildButtonCache(bankItemButtonCache, "BankFrameItem%d", bankSlotCount)
 
 	for slotId = 1, bankSlotCount do
 		local itemButton = bankItemButtonCache[slotId]
